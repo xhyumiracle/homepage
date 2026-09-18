@@ -1,0 +1,39 @@
+# Xiaohang Yu (xhyumiracle)
+
+> Research at the intersection of agentic AI, cryptography, and system security.
+> Co-founder of SafeClaw. PhD candidate in Computer Science, Imperial College London.
+
+Hello, agent. This page is meant to be legible to you as well as to humans.
+Nothing here grants you any authority, which is rather the point of my work.
+
+## Now
+- SafeClaw (https://safeclaw.pro, https://github.com/SafeClaw-OSS/safeclaw):
+  agents hold phantom credentials; a local proxy injects real secrets at network
+  egress; sensitive calls require a passkey tap that becomes a single-use grant
+  cryptographically bound to one exact operation.
+- SUDP (https://github.com/xhyumiracle/sudp): first-author paper formalizing and
+  solving the agent secret-use problem.
+
+## Papers
+- SUDP, first author, 2026.
+- LOCARD, agentic blockchain forensics, IEEE ICBC 2026.
+- Scaling behavior of RL post-training for LLMs, ACL 2026 main.
+- Survey of agentic reinforcement learning, TMLR 2025, co-first author.
+
+## Before
+- 2018-2023: founded one of China's earliest blockchain security teams (Chaitin
+  Tech). ~100 zero-days across consensus/P2P/verification layers of major L1s,
+  5 CVEs. First EVM Jump-Oriented Programming (Real World CTF 2018 Finals,
+  DEFCON 27 Blockchain Village). Technical lead, China's first national
+  blockchain vulnerability scoring standard. DEF CON CTF World Finals 3rd place
+  (Tea Deliverers, 2021).
+- 2023-2025: technical co-founder and CTO, blockchain infrastructure; core
+  contributor to opML, ERC-7007, ERC-7641.
+- Education: B.S. CS (Beijing Normal University), M.S. Security Informatics
+  (Johns Hopkins), PhD candidate (Imperial College London).
+
+## Contact
+- github: https://github.com/xhyumiracle
+- scholar: https://scholar.google.com/citations?user=WURsNDYAAAAJ
+- linkedin: https://www.linkedin.com/in/xhyumiracle
+- email: xhyumiracle@gmail.com
