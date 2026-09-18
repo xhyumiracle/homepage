@@ -1,223 +1,422 @@
-/* v2 sky: a rotating field of background stars, pinned constellations, one bright one */
+/* v3 sky: one rigid rotating draggable star field, real asterisms, camera fly-in.
+   world/camera/render/input lives here. module content + shell + hash live in main.js. */
 (function () {
-  const canvas = document.getElementById('sky');
-  const ctx = canvas.getContext('2d');
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const touch = matchMedia('(hover: none)').matches;
-  const shot = /[?&]shot/.test(location.search);
-  const still = reduced || shot;
+  var canvas = document.getElementById('sky');
+  var ctx = canvas.getContext('2d');
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var touch = matchMedia('(hover: none)').matches;
+  var shotM = /[?&]shot(?:=([a-z0-9]+))?/.exec(location.search);
+  var shot = !!shotM;
+  var still = reduced || shot;
 
-  let W = 0, H = 0, dpr = 1, diag = 0;
-  let stars = [], meteors = [];
-  let mouse = { x: -1, y: -1 }, par = { x: 0, y: 0 };
-  let hoverId = null, litId = null;   /* litId: forced highlight from legend hover */
-  const OMEGA = (Math.PI * 2) / 2400; /* one revolution per 40 min */
-  const t0 = performance.now();
+  var MODULES = ['hacker', 'builder', 'scholar', 'archive'];
 
-  const CONS = [
-    { id: 'ch1', name: '01 · first exploits', sub: '2012–2018',
-      ax: .36, ay: .63, max: .22, may: .45,
-      pts: [[0,0],[.55,-.12],[.5,.45],[1.05,.4],[1,.95]], close: false },
-    { id: 'ch2', name: '02 · a hundred zero-days', sub: '2018–2023',
-      ax: .44, ay: .30, max: .60, may: .37,
-      pts: [[0,.1],[.3,-.15],[.62,.05],[.9,-.2],[1.25,0],[1.5,-.3]], close: false },
-    { id: 'ch3', name: '03 · builder years', sub: '2023–2025',
-      ax: .40, ay: .44, max: .24, may: .63,
-      pts: [[0,.6],[.2,.15],[.55,0],[.9,.18],[1.1,.62]], close: false },
-    { id: 'ch4', name: '04 · agent security', sub: '2025–now',
-      ax: .62, ay: .55, max: .68, may: .53,
-      pts: [[.5,0],[1,.35],[.8,.9],[.2,.9],[0,.35]], close: true },
-    { id: 'safeclaw', name: 'SafeClaw', sub: 'now · live', bright: true,
-      ax: .68, ay: .14, max: .50, may: .30,
-      pts: [[0,0]], close: false },
-    { id: 'archive', name: 'fainter stars', sub: 'archive', dim: true,
-      ax: .55, ay: .77, max: .48, may: .73,
-      pts: [[0,0],[.7,.25],[.25,.55]], close: true },
+  var W = 0, H = 0, dpr = 1;
+  var pole = { x: 0, y: 0 };
+  var stars = [];
+  var meteors = [];
+  var mouse = { x: -1, y: -1 };
+  var hoverId = null, litId = null;
+  var OMEGA = (Math.PI * 2) / 2400; /* one revolution per 40 min */
+
+  var rot = 0;         /* current world rotation angle, radians */
+  var rotVel = 0;       /* momentum after drag release, decays */
+  var zoomed = false, activeId = null;
+  var CAM = { scale: 1, cx: 0, cy: 0 };
+  var camAnim = null;
+
+  /* ---- asterism data: normalized local coords per spec, y-down ---- */
+  var CONS = [
+    { id: 'hacker', name: 'hacker · Orion', sub: 'blockchain security', scaleF: 0.16,
+      pts: [[.20,.05],[.62,.12],[.34,.48],[.44,.52],[.54,.56],[.28,.95],[.72,.90]],
+      lines: [[0,1],[0,2],[1,4],[2,3],[3,4],[2,5],[4,6]], warmIdx: 0 },
+    { id: 'builder', name: 'builder · Capricornus', sub: 'SafeClaw · standards', scaleF: 0.13,
+      pts: [[0,.10],[.12,.35],[.35,.60],[.50,.68],[.72,.55],[.82,.18],[.95,.05]],
+      lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0]], specialIdx: 6 },
+    { id: 'scholar', name: 'scholar · Lyra', sub: 'ICL PhD · 3 directions', scaleF: 0.13,
+      pts: [[.15,.10],[.30,.02],[.32,.25],[.55,.35],[.50,.62],[.72,.60]],
+      lines: [[0,1],[0,2],[2,3],[3,5],[5,4],[4,2]], brightIdx: 0 },
+    { id: 'archive', name: 'fainter stars · Pleiades', sub: 'archive', scaleF: 0.09, dim: true,
+      pts: [[.05,.08],[.14,.03],[.20,.12],[.10,.18],[.22,.20],[.16,.09],[.02,.16]],
+      sizes: [1.0,.8,1.3,.9,1.1,1.4,.85], lines: [] },
   ];
-  CONS.forEach(c => { c.hover = 0; c.pulse = 0; c.stars = []; });
+  var byId = {};
+  CONS.forEach(function (c) { byId[c.id] = c; c.hover = 0; c.pulseStart = null; });
 
-  const QMARK = { x: 0, y: 0, hover: 0,
-    line: 'most of what moves the world never survives it. what does is half a sentence.' };
+  /* rest-layout anchors (local-origin fraction of the centered world band), per constellation.
+     desktop vs mobile differ because the mobile chrome eats most of the top half of the screen. */
+  var ANCHOR = {
+    hacker:  { ax: .20, ay: .48 },
+    builder: { ax: .40, ay: .56 },
+    scholar: { ax: .64, ay: .34 },
+    archive: { ax: .82, ay: .66 },
+  };
+  /* mobile id-block (avatar + eyebrow + name + slogans + two mono lines) runs long;
+     keep the asterisms in the sky band between it and the legend further down the page. */
+  var ANCHOR_MOBILE = {
+    hacker:  { ax: .10, ay: .44 },
+    builder: { ax: .62, ay: .54 },
+    scholar: { ax: .16, ay: .64 },
+    archive: { ax: .68, ay: .76 },
+  };
+
+  var pulseNext = 0, lastPulseId = null;
+
+  function norm(d) { while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
+  function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function smooth01(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
+
+  function screenToBase(x, y) { return { x: (x - W / 2) / CAM.scale + CAM.cx, y: (y - H / 2) / CAM.scale + CAM.cy }; }
+  function baseToScreen(x, y) { return { x: (x - CAM.cx) * CAM.scale + W / 2, y: (y - CAM.cy) * CAM.scale + H / 2 }; }
 
   function layout() {
     dpr = Math.min(devicePixelRatio || 1, 2);
-    W = innerWidth; H = innerHeight; diag = Math.hypot(W, H);
-    canvas.width = W * dpr; canvas.height = H * dpr;
+    W = innerWidth; H = innerHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const mobile = W < 720;
+    var mobile = W < 720;
 
-    const s = Math.min(W, H) * (mobile ? 0.085 : 0.10);
-    for (const c of CONS) {
-      const ax = mobile ? c.max : c.ax, ay = mobile ? c.may : c.ay;
-      c.stars = c.pts.map(p => ({ x: ax * W + p[0] * s, y: ay * H + p[1] * s }));
-      const xs = c.stars.map(p => p.x), ys = c.stars.map(p => p.y);
-      c.cx = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2;
-      c.cy = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
-      c.botY = Math.max.apply(null, ys);
-      c.rad = Math.max(s * (c.bright ? 0.9 : 1.3), 48);
+    CAM.scale = 1; CAM.cx = W / 2; CAM.cy = H / 2;
+    if (zoomed && activeId) { var t = targetCamFor(activeId); CAM.scale = t.scale; CAM.cx = t.cx; CAM.cy = t.cy; }
+
+    pole.x = W * 1.15; pole.y = -H * 0.25;
+
+    var bandW = Math.min(W, 1600), bandX0 = (W - bandW) / 2;
+    var minWH = Math.min(W, H);
+    var anchors = mobile ? ANCHOR_MOBILE : ANCHOR;
+
+    for (var i = 0; i < CONS.length; i++) {
+      var c = CONS[i];
+      var a = anchors[c.id];
+      var originX = bandX0 + a.ax * bandW, originY = a.ay * H;
+      var scale = minWH * c.scaleF * (mobile ? 0.72 : 1);
+      var basePts = c.pts.map(function (p) { return { x: originX + p[0] * scale, y: originY + p[1] * scale }; });
+      var xs = basePts.map(function (p) { return p.x; }), ys = basePts.map(function (p) { return p.y; });
+      var cx0 = (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2;
+      var cy0 = (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2;
+      var maxR = 0;
+      for (var k = 0; k < basePts.length; k++) maxR = Math.max(maxR, Math.hypot(basePts[k].x - cx0, basePts[k].y - cy0));
+      c.rad = Math.max(maxR + scale * 0.28, 46);
+      c.align = cx0 > W * 0.5 ? 'right' : 'left';
+      c.starsPolar = basePts.map(function (p) {
+        return { r: Math.hypot(p.x - pole.x, p.y - pole.y), a: Math.atan2(p.y - pole.y, p.x - pole.x) };
+      });
+      c.rc = Math.hypot(cx0 - pole.x, cy0 - pole.y);
+      c.ac = Math.atan2(cy0 - pole.y, cx0 - pole.x);
+      c.labelDY = maxR + 22;
     }
-    QMARK.x = W * (mobile ? 0.16 : 0.24); QMARK.y = H * (mobile ? 0.62 : 0.56);
 
-    /* background stars in polar coords around an off-screen pole */
-    const px = W * 1.15, py = -H * 0.25;
-    const n = Math.round(W * H / (mobile ? 2400 : 1250));
+    /* background stars: a full ring around the pole (not just the viewport's own wedge),
+       so dragging or idle rotation never spins past populated sky into an empty gap.
+       radii span from the viewport's nearest point to the pole out to its farthest corner. */
+    var corners = [[0, 0], [W, 0], [0, H], [W, H]];
+    var minR = Infinity, maxR = 0;
+    for (var ci = 0; ci < corners.length; ci++) {
+      var dR = Math.hypot(corners[ci][0] - pole.x, corners[ci][1] - pole.y);
+      if (dR < minR) minR = dR; if (dR > maxR) maxR = dR;
+    }
+    minR = Math.max(minR - 40, 0); maxR += 40;
+    var bandAngle = Math.atan2(H / 2 - pole.y, W / 2 - pole.x);
+    var ringArea = Math.PI * (maxR * maxR - minR * minR);
+    var density = 1 / (mobile ? 2400 : 1250);
+    var n = Math.round(ringArea * density);
     stars = [];
-    while (stars.length < n) {
-      const u = Math.random(), v = Math.random();
-      const d = Math.abs(u + v - 1) / Math.SQRT2;   /* milky way diagonal density band */
-      if (Math.random() > 0.3 + 0.7 * Math.exp(-Math.pow(d / 0.14, 2))) continue;
-      const x = u * W, y = v * H;
-      const roll = Math.random();
+    var guard = 0;
+    while (stars.length < n && guard < n * 8) {
+      guard++;
+      var a0 = Math.random() * Math.PI * 2;
+      var d = Math.abs(norm(a0 - bandAngle));
+      if (Math.random() > 0.3 + 0.7 * Math.exp(-Math.pow(d / 0.55, 2))) continue;
+      var r0 = Math.sqrt(minR * minR + Math.random() * (maxR * maxR - minR * minR));
+      var roll = Math.random();
       stars.push({
-        r: Math.hypot(x - px, y - py),
-        a: Math.atan2(y - py, x - px),
+        r: r0, a: a0,
         size: Math.random() < 0.035 ? 1.5 + Math.random() * 0.9 : 0.35 + Math.random() * 0.85,
         alpha: 0.3 + Math.random() * 0.55,
         ph: Math.random() * Math.PI * 2,
         sp: 0.4 + Math.random() * 1.1,
-        depth: 0.5 + Math.random() * 0.5,
         tint: roll < 0.9 ? '232,230,221' : roll < 0.97 ? '216,192,138' : '160,190,230',
       });
     }
-    stars.pole = { x: px, y: py };
+  }
+
+  function targetCamFor(id) {
+    var c = byId[id];
+    var ang = c.ac + rot;
+    var cenX = pole.x + c.rc * Math.cos(ang), cenY = pole.y + c.rc * Math.sin(ang);
+    var mobile = W < 720;
+    var scale = 2.4;
+    var tScreenX = mobile ? W * 0.5 : W * 0.225;
+    var tScreenY = mobile ? H * 0.20 : H * 0.5;
+    return { scale: scale, cx: cenX - (tScreenX - W / 2) / scale, cy: cenY - (tScreenY - H / 2) / scale };
+  }
+
+  function setCamImmediate(t) { CAM.scale = t.scale; CAM.cx = t.cx; CAM.cy = t.cy; camAnim = null; }
+  function tweenCam(target, dur, onDone) {
+    if (still || dur <= 0) { setCamImmediate(target); if (onDone) onDone(); return; }
+    camAnim = { from: { scale: CAM.scale, cx: CAM.cx, cy: CAM.cy }, to: target, t0: performance.now(), dur: dur, onDone: onDone };
+  }
+  function updateCam(now) {
+    if (!camAnim) return;
+    var t = (now - camAnim.t0) / camAnim.dur;
+    if (t >= 1) t = 1;
+    var e = easeInOutCubic(t);
+    CAM.scale = camAnim.from.scale + (camAnim.to.scale - camAnim.from.scale) * e;
+    CAM.cx = camAnim.from.cx + (camAnim.to.cx - camAnim.from.cx) * e;
+    CAM.cy = camAnim.from.cy + (camAnim.to.cy - camAnim.from.cy) * e;
+    if (t >= 1) { var cb = camAnim.onDone; camAnim = null; if (cb) cb(); }
+  }
+
+  function flyTo(id) {
+    if (!byId[id] || activeId === id && zoomed && !camAnim) return;
+    zoomed = true; activeId = id; ptrDragging = false;
+    dispatchEvent(new CustomEvent('sky:zoomstart', { detail: { id: id } }));
+    tweenCam(targetCamFor(id), 700, function () {
+      dispatchEvent(new CustomEvent('sky:settle', { detail: { id: id } }));
+    });
+    if (still) repaint();
+  }
+  function flyOut() {
+    if (!zoomed) return;
+    zoomed = false; activeId = null;
+    dispatchEvent(new CustomEvent('sky:zoomstart', { detail: { id: null } }));
+    tweenCam({ scale: 1, cx: W / 2, cy: H / 2 }, 700, function () {
+      dispatchEvent(new CustomEvent('sky:settle', { detail: { id: null } }));
+    });
+    if (still) repaint();
+  }
+  function stepNext() { if (!zoomed) return; var i = MODULES.indexOf(activeId); flyTo(MODULES[(i + 1) % MODULES.length]); }
+  function stepPrev() { if (!zoomed) return; var i = MODULES.indexOf(activeId); flyTo(MODULES[(i - 1 + MODULES.length) % MODULES.length]); }
+
+  function pulseAlpha(c, now) {
+    if (c.pulseStart == null) return 0;
+    var FADE_IN = 1400, HOLD = 1800, FADE_OUT = 2800, TOTAL = FADE_IN + HOLD + FADE_OUT;
+    var e = now - c.pulseStart;
+    if (e > TOTAL) { c.pulseStart = null; return 0; }
+    if (e < FADE_IN) return smooth01(e / FADE_IN);
+    if (e < FADE_IN + HOLD) return 1;
+    return 1 - smooth01((e - FADE_IN - HOLD) / FADE_OUT);
+  }
+  function maybePulse(now) {
+    if (still || zoomed) return;
+    if (now >= pulseNext) {
+      var choices = CONS.filter(function (c) { return c.id !== lastPulseId; });
+      var pick = choices[Math.floor(Math.random() * choices.length)];
+      pick.pulseStart = now;
+      lastPulseId = pick.id;
+      pulseNext = now + 4000 + Math.random() * 3000;
+    }
+  }
+
+  function visOf(c, now) {
+    var base = c.dim ? 0.18 : 0.30;
+    if (zoomed) return (activeId === c.id) ? 0.95 : 0.15;
+    var v = base;
+    v = Math.max(v, base + pulseAlpha(c, now) * (0.55 - base));
+    var forced = (litId === c.id) ? 1 : 0;
+    var hoverA = Math.max(c.hover, forced);
+    v = Math.max(v, base + hoverA * (0.95 - base));
+    return still ? Math.max(v, 0.55) : v;
   }
 
   function drawCon(c, now) {
-    const forced = (litId === c.id) ? 1 : 0;
-    const base = c.dim ? 0.14 : 0.22;
-    const vis = still ? 0.55 : Math.min(1, base + Math.max(c.hover, c.pulse * 0.6, forced) * (1 - base));
-    /* member stars */
-    for (const p of c.stars) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, (c.bright ? 2.7 : c.dim ? 1.4 : 1.9) + vis * 0.8, 0, 7);
-      ctx.fillStyle = c.bright
-        ? 'rgba(138,212,207,' + (0.75 + 0.25 * Math.sin(now / 700)) + ')'
-        : 'rgba(233,228,214,' + (0.5 + 0.45 * vis) + ')';
-      ctx.fill();
-      if (c.bright) {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 9 + 2 * Math.sin(now / 700), 0, 7);
-        ctx.fillStyle = 'rgba(138,212,207,0.13)'; ctx.fill();
-      }
-    }
-    /* lines: visible by default, brighter on attention */
-    if (c.stars.length > 1) {
-      const pts = c.close ? c.stars.concat([c.stars[0]]) : c.stars;
+    var vis = visOf(c, now);
+    var pts = c.starsPolar.map(function (sp) {
+      var ang = sp.a + rot;
+      return baseToScreen(pole.x + sp.r * Math.cos(ang), pole.y + sp.r * Math.sin(ang));
+    });
+    var sizeMul = (zoomed && activeId === c.id) ? 1.3 : 1;
+
+    if (c.lines && c.lines.length && pts.length > 1) {
       ctx.strokeStyle = 'rgba(216,192,138,' + (0.38 * vis) + ')';
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-      ctx.stroke();
+      for (var li = 0; li < c.lines.length; li++) {
+        var p0 = pts[c.lines[li][0]], p1 = pts[c.lines[li][1]];
+        ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+      }
     }
-    /* labels: name + sub, always readable */
-    const la = still ? 0.9 : 0.55 + 0.45 * vis;
-    const align = c.cx > W * 0.5 ? 'right' : 'left';
-    const lx = c.cx + (align === 'right' ? -c.rad * 0.15 : c.rad * 0.15);
-    ctx.textAlign = align;
+
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i];
+      var memberSize = (c.sizes ? c.sizes[i] : 1.9) * sizeMul;
+      if (c.specialIdx === i) {
+        var glow = (9 + 2 * Math.sin(now / 700)) * sizeMul;
+        ctx.beginPath(); ctx.arc(p.x, p.y, glow, 0, 7);
+        ctx.fillStyle = 'rgba(138,212,207,' + (0.16 * vis) + ')'; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, (2.7 + vis * 0.8) * sizeMul, 0, 7);
+        ctx.fillStyle = 'rgba(138,212,207,' + (0.55 + 0.35 * vis * (0.75 + 0.25 * Math.sin(now / 700))) + ')';
+        ctx.fill();
+      } else if (c.brightIdx === i) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, (2.4 + vis * 0.9) * sizeMul, 0, 7);
+        ctx.fillStyle = 'rgba(240,236,222,' + (0.55 + 0.4 * vis) + ')'; ctx.fill();
+      } else {
+        var tint = (c.warmIdx === i) ? '233,220,196' : '233,228,214';
+        ctx.beginPath(); ctx.arc(p.x, p.y, memberSize, 0, 7);
+        ctx.fillStyle = 'rgba(' + tint + ',' + (0.5 + 0.45 * vis) + ')';
+        ctx.fill();
+      }
+    }
+
+    var la = still ? 0.9 : 0.55 + 0.45 * vis;
+    var cen = baseToScreen(pole.x + c.rc * Math.cos(c.ac + rot), pole.y + c.rc * Math.sin(c.ac + rot));
+    var lx = cen.x + (c.align === 'right' ? -c.rad * 0.15 : c.rad * 0.15) * CAM.scale;
+    var ly = cen.y + c.labelDY * CAM.scale;
+    ctx.textAlign = c.align;
     ctx.font = '11px PlexMono, monospace';
-    ctx.fillStyle = c.bright ? 'rgba(138,212,207,' + la + ')' : 'rgba(180,184,196,' + la + ')';
-    ctx.fillText(c.name, lx, c.botY + 20);
+    ctx.fillStyle = 'rgba(180,184,196,' + la + ')';
+    ctx.fillText(c.name, lx, ly);
     ctx.font = '9px PlexMono, monospace';
     ctx.fillStyle = 'rgba(86,91,107,' + la + ')';
-    ctx.fillText(c.sub, lx, c.botY + 34);
+    ctx.fillText(c.sub, lx, ly + 14);
   }
 
-  function drawQmark(now) {
-    const a = 0.35 + 0.5 * QMARK.hover + (still ? 0.15 : 0.08 * Math.sin(now / 900));
-    ctx.textAlign = 'center';
-    ctx.font = 'italic 15px Spectral, serif';
-    ctx.fillStyle = 'rgba(216,192,138,' + a + ')';
-    ctx.fillText('?', QMARK.x, QMARK.y);
-    if (QMARK.hover > 0.5) {
-      ctx.font = 'italic 11px Spectral, serif';
-      ctx.fillStyle = 'rgba(139,144,160,' + QMARK.hover * 0.9 + ')';
-      ctx.textAlign = QMARK.x < W / 2 ? 'left' : 'right';
-      ctx.fillText(QMARK.line, QMARK.x + (QMARK.x < W / 2 ? 14 : -14), QMARK.y + 1);
-    }
-  }
-
-  let pulseIdx = 0, lastPulse = 0;
+  var t0 = performance.now(), lastT = t0;
   function frame(now) {
-    if (document.hidden) { requestAnimationFrame(frame); return; }
+    if (document.hidden) { if (!still) requestAnimationFrame(frame); return; }
     ctx.clearRect(0, 0, W, H);
-    const t = (now - t0) / 1000;
-    par.x += (((mouse.x >= 0 ? mouse.x : W / 2) - W / 2) / W * 8 - par.x) * 0.04;
-    par.y += (((mouse.y >= 0 ? mouse.y : H / 2) - H / 2) / H * 8 - par.y) * 0.04;
+    var dt = Math.min((now - lastT) / 1000, 0.1); lastT = now;
 
-    /* rotating background field */
-    const pole = stars.pole, rot = still ? 0 : OMEGA * t;
-    for (const s of stars) {
-      const a = s.a + rot;
-      const x = pole.x + s.r * Math.cos(a) - par.x * s.depth;
-      const y = pole.y + s.r * Math.sin(a) - par.y * s.depth;
-      if (x < -8 || x > W + 8 || y < -8 || y > H + 8) continue;
-      const tw = still ? 1 : 0.72 + 0.28 * Math.sin(t * s.sp + s.ph);
+    updateCam(now);
+
+    if (!zoomed && !ptrDragging) {
+      rotVel = Math.max(-6, Math.min(6, rotVel));
+      rot += (OMEGA + rotVel) * dt;
+      if (!still) rotVel *= Math.exp(-dt / 0.55); else rotVel = 0;
+    }
+
+    var bgMul = zoomed ? 0.35 : 1;
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var ang = s.a + rot;
+      var p = baseToScreen(pole.x + s.r * Math.cos(ang), pole.y + s.r * Math.sin(ang));
+      if (p.x < -8 || p.x > W + 8 || p.y < -8 || p.y > H + 8) continue;
+      var tw = still ? 1 : 0.72 + 0.28 * Math.sin((now / 1000) * s.sp + s.ph);
       ctx.beginPath();
-      ctx.arc(x, y, s.size, 0, 7);
-      ctx.fillStyle = 'rgba(' + s.tint + ',' + (s.alpha * tw) + ')';
+      ctx.arc(p.x, p.y, s.size * Math.max(CAM.scale, 0.6), 0, 7);
+      ctx.fillStyle = 'rgba(' + s.tint + ',' + (s.alpha * tw * bgMul) + ')';
       ctx.fill();
     }
 
-    /* meteors */
-    if (!still) {
+    if (!zoomed && !still) {
       if (now - (meteors.last || 0) > 18000 + Math.random() * 18000) {
         meteors.last = now;
-        const mx = Math.random() * W * 0.8 + W * 0.1, my = Math.random() * H * 0.3;
+        var mx = Math.random() * W * 0.8 + W * 0.1, my = Math.random() * H * 0.3;
         meteors.push({ x: mx, y: my, vx: -(3 + Math.random() * 3), vy: 2 + Math.random() * 2, life: 1 });
       }
-      for (const m of meteors) {
-        m.x += m.vx; m.y += m.vy; m.life -= 0.02;
-        if (m.life <= 0) continue;
-        ctx.strokeStyle = 'rgba(233,228,214,' + (0.5 * m.life) + ')';
+      for (var m = 0; m < meteors.length; m++) {
+        var mt = meteors[m];
+        mt.x += mt.vx; mt.y += mt.vy; mt.life -= 0.02;
+        if (mt.life <= 0) continue;
+        ctx.strokeStyle = 'rgba(233,228,214,' + (0.5 * mt.life) + ')';
         ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x - m.vx * 8, m.y - m.vy * 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(mt.x, mt.y); ctx.lineTo(mt.x - mt.vx * 8, mt.y - mt.vy * 8); ctx.stroke();
       }
-      meteors = meteors.filter(m => m.life > 0), meteors.last = meteors.last || now;
+      meteors = meteors.filter(function (mt) { return mt.life > 0; });
     }
 
-    /* gentle attention pulse cycling through constellations */
-    if (!still && now - lastPulse > 5200) { lastPulse = now; CONS[pulseIdx % CONS.length].pulse = 1; pulseIdx++; }
+    maybePulse(now);
 
-    let anyHover = false;
-    for (const c of CONS) {
-      if (!touch && mouse.x >= 0) {
-        const want = Math.hypot(mouse.x - c.cx, mouse.y - c.cy) < c.rad ? 1 : 0;
+    var anyHover = false;
+    if (!touch && !zoomed && mouse.x >= 0) {
+      var b = screenToBase(mouse.x, mouse.y);
+      for (var ci = 0; ci < CONS.length; ci++) {
+        var c = CONS[ci];
+        var ang2 = c.ac + rot;
+        var cenX = pole.x + c.rc * Math.cos(ang2), cenY = pole.y + c.rc * Math.sin(ang2);
+        var want = Math.hypot(b.x - cenX, b.y - cenY) < c.rad ? 1 : 0;
         if (want) { anyHover = true; hoverId = c.id; }
-        c.hover += (want - c.hover) * (still ? 1 : 0.1);
+        c.hover += (want - c.hover) * (still ? 1 : 0.15);
       }
-      c.pulse *= 0.985;
-      drawCon(c, now);
+      if (!anyHover) hoverId = null;
+    } else {
+      for (var cj = 0; cj < CONS.length; cj++) CONS[cj].hover *= 0.9;
     }
-    if (!anyHover && hoverId) hoverId = null;
 
-    const qw = Math.hypot(mouse.x - QMARK.x, mouse.y - QMARK.y) < 26 ? 1 : 0;
-    QMARK.hover += (qw - QMARK.hover) * (still ? 1 : 0.12);
-    drawQmark(now);
+    for (var k = 0; k < CONS.length; k++) drawCon(CONS[k], now);
 
-    document.body.style.cursor = anyHover ? 'pointer' : '';
+    if (zoomed) canvas.style.cursor = '';
+    else if (ptrDragging) canvas.style.cursor = 'grabbing';
+    else if (anyHover) canvas.style.cursor = 'pointer';
+    else canvas.style.cursor = touch ? '' : 'grab';
+
     if (!still) requestAnimationFrame(frame);
   }
+  function repaint() { frame(performance.now()); }
 
-  /* public API for main.js */
-  window.Sky = {
-    highlight: function (id, on) { litId = on ? id : (litId === id ? null : litId); if (still) frame(performance.now()); },
-    repaint: function () { frame(performance.now()); },
-  };
+  /* ---- pointer input: drag rotates the sky, click on a constellation selects it,
+     while zoomed a horizontal drag/swipe cycles modules ---- */
+  var ptrActive = false, ptrDragging = false;
+  var ptr0 = { x: 0, y: 0 }, ang0 = 0, rot0 = 0, lastAng = 0, lastAngT = 0;
+  var THRESH = 6;
 
-  addEventListener('resize', function () { layout(); if (still) frame(performance.now()); }, { passive: true });
-  addEventListener('mousemove', function (e) {
-    if (e.target !== canvas) { mouse.x = -1; mouse.y = -1; return; }
-    mouse.x = e.clientX; mouse.y = e.clientY;
-  }, { passive: true });
-  canvas.addEventListener('click', function (e) {
-    for (const c of CONS) {
-      if (Math.hypot(e.clientX - c.cx, e.clientY - c.cy) < c.rad * (touch ? 1.5 : 1)) {
-        dispatchEvent(new CustomEvent('sky:select', { detail: c.id }));
-        return;
+  canvas.addEventListener('pointerdown', function (e) {
+    ptrActive = true; ptrDragging = false;
+    ptr0.x = e.clientX; ptr0.y = e.clientY;
+    if (!zoomed) {
+      var b = screenToBase(e.clientX, e.clientY);
+      ang0 = Math.atan2(b.y - pole.y, b.x - pole.x);
+      rot0 = rot; lastAng = ang0; lastAngT = performance.now();
+    }
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  canvas.addEventListener('pointermove', function (e) {
+    if (!touch) { mouse.x = e.clientX; mouse.y = e.clientY; }
+    if (!ptrActive) return;
+    var dx = e.clientX - ptr0.x, dy = e.clientY - ptr0.y;
+    if (!ptrDragging && Math.hypot(dx, dy) > THRESH) { ptrDragging = true; rotVel = 0; }
+    if (!ptrDragging || zoomed) return;
+    var b = screenToBase(e.clientX, e.clientY);
+    var ang = Math.atan2(b.y - pole.y, b.x - pole.x);
+    rot = rot0 + norm(ang - ang0);
+    var now = performance.now(), dt = (now - lastAngT) / 1000;
+    if (dt > 0.012) rotVel = Math.max(-6, Math.min(6, norm(ang - lastAng) / dt));
+    lastAng = ang; lastAngT = now;
+    if (still) repaint();
+  });
+  function endPointer(e) {
+    if (!ptrActive) return;
+    ptrActive = false;
+    if (zoomed) {
+      if (ptrDragging) {
+        var dx = e.clientX - ptr0.x;
+        if (Math.abs(dx) > 40) dispatchEvent(new CustomEvent('sky:swipe', { detail: dx < 0 ? 1 : -1 }));
+      }
+      ptrDragging = false;
+      return;
+    }
+    if (!ptrDragging) {
+      var b = screenToBase(e.clientX, e.clientY);
+      for (var i = 0; i < CONS.length; i++) {
+        var c = CONS[i];
+        var ang2 = c.ac + rot;
+        var cenX = pole.x + c.rc * Math.cos(ang2), cenY = pole.y + c.rc * Math.sin(ang2);
+        if (Math.hypot(b.x - cenX, b.y - cenY) < c.rad * (touch ? 1.5 : 1)) {
+          dispatchEvent(new CustomEvent('sky:select', { detail: c.id }));
+          break;
+        }
       }
     }
-  });
+    ptrDragging = false;
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', function () { mouse.x = -1; mouse.y = -1; });
+
+  addEventListener('resize', function () { layout(); if (still) repaint(); }, { passive: true });
+
+  window.Sky = {
+    MODULES: MODULES,
+    highlight: function (id, on) { litId = on ? id : (litId === id ? null : litId); if (still) repaint(); },
+    repaint: repaint,
+    flyTo: flyTo,
+    flyOut: flyOut,
+    next: stepNext,
+    prev: stepPrev,
+    current: function () { return activeId; },
+    isZoomed: function () { return zoomed; },
+  };
 
   layout();
   requestAnimationFrame(frame);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (still) frame(performance.now()); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (still) repaint(); });
 })();
