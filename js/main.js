@@ -284,12 +284,18 @@
    cwd = r.segs;
    request(cwd.length ? cwd[0] : null);
    printLine(pathStr(cwd));
-  } else {
+  } else if (r.segs.length > 1 && MODULES.indexOf(r.segs[0]) >= 0) {
+   /* cd into a subsection file (e.g. `cd hacker/protocol-auditing`): UX sugar — fly to its
+    module and scroll to the subsection, per the help text ("a file flies + scrolls"). only
+    applies to files nested inside a real module dir; top-level singleton files (README,
+    skills) fall through to the Not-a-directory branch below like real cd on a plain file. */
    cwd = [r.segs[0]];
    request(cwd[0]);
    var slug = r.segs[1];
    setTimeout(function () { scrollSubsecIntoView(cwd[0], slug); }, still ? 0 : 720);
    printLine(pathStr(r.segs));
+  } else {
+   printLine('cd: ' + a + ': Not a directory');
   }
  }
  function catCmd(arg) {

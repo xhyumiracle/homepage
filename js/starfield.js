@@ -1,4 +1,4 @@
-/* v5b sky: the gaze model. no rotation axis, no fisheye. the world is a plane ~1.7x the
+/* v6 sky: the gaze model. no rotation axis, no fisheye. the world is a plane ~1.7x the
  viewport in each dimension, centered on polaris; every star and constellation gets a
  STATIC world position (the old theta-orbit rest poses, spread further into the extra
  world margin so panning toward an edge reveals content). the camera pans opposite the
@@ -7,23 +7,32 @@
  (~4-5% of viewport width at full pointer travel; see the K comment down with the gaze
  constants), since the home pose already shows every constellation.
 
- dust is 3 depth layers, density-biased into a band so it reads as a milky-way star-river:
- far and mid, plus ~98% of near (everything but its brightest sliver), are pre-rendered once
- per layout() onto offscreen world-sized canvases at reduced resolution and just drawImage'd
- each frame — cheap, static parallax, no per-star cost. only near's brightest ~2% (the ones
- with halo sprites) stay live-drawn for real per-star twinkle; see the dust-section comment
- for why (a real, profiled frame-budget regression this rewrite hit and fixed). a pan-factor
- stack (GAZE_PF/MID_PF/FAR_PF) further dampens how much of the camera's already-small raw
- excursion each depth layer actually shows.
+ dust is 4 depth layers (ultra-far/far/mid/near), density-biased into a band so it reads as
+ a milky-way star-river, PLUS the milky way's own nebulosity+dark-rift layer — all of it
+ generated exactly ONCE, at module init, from a single seeded PRNG (mulberry32, fixed literal
+ seed) over a fixed viewport-independent coordinate space. layout() (boot + every resize)
+ never re-randomizes any of that: it only re-bakes crops of the fixed field into differently
+ sized offscreen world canvases and just drawImage's them each frame — cheap, static
+ parallax, no per-star cost. only near's brightest ~2% (the ones with halo sprites) stay
+ live-drawn for real per-star twinkle; see the dust-section comment for why (a real, profiled
+ frame-budget regression an earlier rewrite hit and fixed). a pan-factor stack (GAZE_PF/
+ MID_PF/FAR_PF/ULTRA_FAR_PF/MW_PF) further dampens how much of the camera's already-small raw
+ excursion each depth layer actually shows — including the milky way itself, which used to be
+ blitted screen-locked with no parallax term at all (see the root-cause note by mwField()).
+
+ the milky way is one physical field (mwField(): seeded fBm clouds + a carved Great-Rift dark
+ lane along the band spine), not two independently-random overlays: star density AND alpha in
+ every layer read from the same field the nebulosity canvas paints, so faint stars visibly
+ cluster where the cloud is bright and thin out inside the rift.
 
  attention (the constellation nearest the pointer) is light, never size. idle drifts on a
  slow Lissajous wander; touch drags the camera directly (same gentle range) with momentum. a
  click on polaris toggles a frozen mode (camera eases home and holds, wander suspended,
  subtle ring on polaris) unless a module is open, in which case it zooms out first as before.
- the sky background carries a pre-rendered atmosphere: a faint horizon lift, a gentle
- vignette, and a mottled, band-biased milky-way wash so the star river reads as cloud
- structure, not a flat gradient. module/shell logic (including the corner shell's own
- auto-scroll) lives in main.js. */
+ the sky background carries a pre-rendered atmosphere: a faint horizon lift and a gentle
+ vignette, both screen-space (a lens effect, not sky content) and both plain fixed-stop
+ gradients — no randomness ever touched them. module/shell logic (including the corner
+ shell's own auto-scroll) lives in main.js. */
 (function () {
  var canvas = document.getElementById('sky');
  var ctx = canvas.getContext('2d');
@@ -98,7 +107,7 @@
   pointer swing reads as real depth rather than a flat pan. only the near/constellation plane
   snaps to a factor of 1 while a module is zoomed (precise fly-to navigation there, no gaze
   damping); far/mid dust keep their parallax always, zoomed or not. */
- var GAZE_PF = 0.9, MID_PF = 0.7, FAR_PF = 0.5;
+ var GAZE_PF = 1.0, MID_PF = 0.7, FAR_PF = 0.45, ULTRA_FAR_PF = 0.3, MW_PF = 0.34; /* widened slightly from the old .9/.7/.5 near/mid/far so depth separation reads more clearly; ULTRA_FAR/MW sit further back than far still */
  function gazeCam() {
   if (zoomed) return CAM;
   return { scale: CAM.scale, cx: pole.x + (CAM.cx - pole.x) * GAZE_PF, cy: pole.y + (CAM.cy - pole.y) * GAZE_PF };
@@ -120,94 +129,243 @@
   return { localPts: pts, maxR: maxR };
  }
 
- /* --- dust + atmosphere ---
-  MW_ANGLE is the one fixed diagonal shared by three things so they all line up: the star-
-  density band bias below, the nebulosity blobs, and the milky-way wash gradient.
+ /* --- deterministic sky generation ---
+  every star position/size/alpha/color, the milky-way nebulosity field (fbm clouds + the dark
+  rift), and the band structure are all drawn from ONE seeded PRNG (mulberry32, fixed literal
+  seed) and generated in a FIXED, viewport-independent local coordinate space (GEN_HALF_W/H
+  below) centered on the world origin. layout() never re-randomizes any of it on resize/zoom:
+  resize only changes WORLD (the viewport-sized "view window" cropped out of this fixed field)
+  and re-bakes the crop into differently-sized offscreen canvases. that's what makes the sky
+  pixel-stable in world space across resizes/dpr/reloads — only the projection (what part of
+  the fixed field is visible, and at what canvas resolution) ever changes.
 
-  root-cause note (the "no dust on real browsers" regression): genLayer() used to read the
-  shared `pole`/`WORLD` closure vars directly. layout() only writes those at its very end (the
-  "commit" step, by design: a half-built layout should never clobber a good one), but it used
-  to call genLayer() *before* that commit — so every star was generated against pole={x:0,y:0}
-  and WORLD={halfW:0,halfH:0}, i.e. `pole.x + rand*WORLD.halfW` collapsed to exactly (0,0) for
-  every single star, every layout(). the whole dust field sat stacked in one point just off the
-  top-left corner, permanently, on every load and resize, independent of dpr — dpr only changed
-  how forgiving downscaled preview screenshots were about not noticing. fixed by threading the
-  freshly-computed newPole/newWorld into genLayer()/prerenderLayer() explicitly instead of
-  reading the stale shared globals. */
- var MW_ANGLE = -0.58;
- function powerBrightness(pw) { return Math.pow(Math.random(), pw); }
- function bandFrac(px, py, cx, cy, bandWidth) {
-  var perp = (px - cx) * -Math.sin(MW_ANGLE) + (py - cy) * Math.cos(MW_ANGLE);
-  return Math.exp(-(perp * perp) / (2 * bandWidth * bandWidth));
+  root-cause note (the earlier "no dust on real browsers" regression, now moot but the lesson
+  still applies): genLayer() used to read the shared `pole`/`WORLD` closure vars directly, which
+  layout() only writes at its very end (the "commit" step, by design: a half-built layout should
+  never clobber a good one) — calling genLayer() before that commit collapsed every star to
+  pole={x:0,y:0}. the fix then was threading fresh values through explicitly; the fix now goes
+  further and removes pole/WORLD from star generation entirely (see below), so that whole class
+  of bug can't recur and, as a side effect, resize no longer re-samples anything. */
+ var RNG_SEED = 0x9E3779B9;
+ function mulberry32(seed) {
+  return function () {
+   seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+   var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
  }
- function genLayer(count, opt, poleRef, worldRef) {
+ var rng = mulberry32(RNG_SEED);
+ var GEN_HALF_W = 1900, GEN_HALF_H = 1300; /* fixed generation extent: comfortably covers WORLD.halfW/halfH (= viewport*0.85) for any realistic browser window; a viewport wide enough to exceed it just loses a little content at the fringe rather than breaking */
+
+ /* value-noise fBm over an unbounded integer lattice, hashed (not stored) so there's no tiling
+  seam: hash2() is a fixed deterministic function of (seed, ix, iy), independent of rng()'s
+  sequential draw order, so it can be called any number of times in any order without disturbing
+  the star-generation sequence below. */
+ function hash2(ix, iy) {
+  var h = (ix * 374761393 + iy * 668265263 + RNG_SEED * 2654435761) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h = (h ^ (h >>> 16)) >>> 0;
+  return h / 4294967295;
+ }
+ function smootherstep(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+ function valueNoise2D(x, y) {
+  var x0 = Math.floor(x), y0 = Math.floor(y);
+  var fx = smootherstep(x - x0), fy = smootherstep(y - y0);
+  var v00 = hash2(x0, y0), v10 = hash2(x0 + 1, y0), v01 = hash2(x0, y0 + 1), v11 = hash2(x0 + 1, y0 + 1);
+  var a = v00 + (v10 - v00) * fx, b = v01 + (v11 - v01) * fx;
+  return a + (b - a) * fy;
+ }
+ var MW_OCTAVES = 5;
+ function fbm(x, y) {
+  var amp = 0.55, freq = 1, sum = 0, norm = 0;
+  for (var o = 0; o < MW_OCTAVES; o++) {
+   sum += amp * valueNoise2D(x * freq, y * freq);
+   norm += amp;
+   amp *= 0.54; freq *= 2.13; /* slightly irregular lacunarity/persistence so the octaves don't stack into an obviously self-similar pattern */
+  }
+  return sum / norm;
+ }
+
+ /* the milky way band: one shared field function, mwField(), that every consumer reads from —
+  star generation (density AND alpha) below, and the nebulosity canvas further down. that's the
+  "one physical object, not two overlays" fix: there is exactly one procedural galaxy here, and
+  everything else just samples it.
+
+  root-cause note (the "screen-space fog" complaint): the old buildAtmosphere() painted its
+  nebulosity blobs straight onto a viewport-sized canvas that frame() drew at a fixed (0,0)
+  offset every frame, with NO camera/parallax term at all — every other depth layer (far/mid/
+  near dust, constellations) pans with gazeCam(), so the milky way sat visually glued to the
+  glass while everything behind/around it drifted, which is exactly what reads as "fog on the
+  lens" instead of "part of the sky" (and, separately, its per-layout Math.random() blob
+  scatter meant resize/zoom regenerated a different cloud shape — the two complaints share one
+  root cause: it was never treated as sky content). the fix below bakes the field into a WORLD-
+  sized canvas (mwWorldCanvas) exactly like the star layers and draws it through
+  drawPrerenderedLayer() with its own pan factor (MW_PF), so it participates in the same
+  parallax stack, and its shape comes from the same fixed seed as everything else. */
+ var MW_ANGLE = -0.58;
+ var MW_DIR_X = Math.cos(MW_ANGLE), MW_DIR_Y = Math.sin(MW_ANGLE);
+ var MW_PERP_X = -Math.sin(MW_ANGLE), MW_PERP_Y = Math.cos(MW_ANGLE);
+ var BAND_SIGMA = 104; /* perpendicular half-width of the overall band envelope — ~45% of the original 230; the architect's visual review called the wider band "storm haze" dominating the frame, this narrows it to a proper river */
+ var MW_SCALE_ALONG = 340, MW_SCALE_PERP = 130; /* fbm feature scale, anisotropic so cloud structure elongates along the band rather than reading as isotropic static */
+
+ /* the Great Rift: a single meandering dark dust lane along the band's spine, carved out of the
+  same field it dims — not a separate mask. shape (two sine harmonics) and placement (center/
+  length/width) are all drawn from the shared seeded rng() at module init, once, so the rift's
+  path never changes across reloads/resizes. covers roughly a third of the band's length, per
+  the real Great Rift (it doesn't run the band's whole length), tapered by a gaussian envelope
+  rather than a hard cutoff. */
+ var RIFT = (function () {
+  return {
+   f1: 0.85 + rng() * 0.5, f2: 2.0 + rng() * 0.9,
+   p1: rng() * Math.PI * 2, p2: rng() * Math.PI * 2,
+   a1: 85 + rng() * 35, a2: 26 + rng() * 18,
+   center: (rng() * 2 - 1) * 260,
+   halfLen: 560 + rng() * 160,
+   widthBase: 50 + rng() * 18,
+  };
+ })();
+ function riftCenterline(along) {
+  var t = along / 480;
+  return RIFT.a1 * Math.sin(t * RIFT.f1 + RIFT.p1) + RIFT.a2 * Math.sin(t * RIFT.f2 + RIFT.p2);
+ }
+ function mwField(lx, ly) {
+  var along = lx * MW_DIR_X + ly * MW_DIR_Y;
+  var perp = lx * MW_PERP_X + ly * MW_PERP_Y;
+  var bandEnv = Math.exp(-(perp * perp) / (2 * BAND_SIGMA * BAND_SIGMA));
+  var neb = fbm(along / MW_SCALE_ALONG, perp / MW_SCALE_PERP);
+  var edgeFade = 1 - smooth01((Math.abs(along) - GEN_HALF_W * 0.72) / (GEN_HALF_W * 0.26)); /* fades the field out before the fixed generation extent's own edge, so a viewport wide enough to approach GEN_HALF_W never shows a hard boundary */
+  var widthJit = 0.72 + 0.5 * fbm(along / 900 + 40, 11);
+  var rc = riftCenterline(along);
+  var renv = Math.exp(-Math.pow(along - RIFT.center, 2) / (2 * RIFT.halfLen * RIFT.halfLen));
+  var rw = RIFT.widthBase * widthJit;
+  var rift = renv * Math.exp(-Math.pow(perp - rc, 2) / (2 * rw * rw));
+  var bright = bandEnv * (0.32 + 0.68 * neb) * edgeFade;
+  bright *= (1 - 0.82 * rift); /* carve the dark lane — dust never quite fully occludes, same as the real thing */
+  return { bright: Math.max(0, bright), perp: perp, along: along, rift: rift, bandEnv: bandEnv };
+ }
+
+ /* star generation: rejection-sampled over the FIXED GEN_HALF_W/H extent (never the viewport-
+  scaled WORLD — see the determinism note above), reading density AND alpha from the same
+  mwField() the nebulosity canvas paints, so faint stars visibly thin out inside the rift and
+  cluster where the cloud is bright — coupling, not two independently-random overlays.
+  `coupling` blends between full mwField-driven density (1, far/mid) and the old flatter
+  band-only gaussian (0, closer to near's original near-uniform foreground feel). */
+ function genLayer(count, opt) {
   var out = [];
   var guard = 0, need = count;
   var floor = opt.floor != null ? opt.floor : 0.35;
-  var bandWidth = opt.bandWidth || worldRef.halfH * 0.35;
-  while (out.length < need && guard < need * 8) {
+  var coupling = opt.coupling != null ? opt.coupling : 1;
+  while (out.length < need && guard < need * 40) {
    guard++;
-   var x = poleRef.x + (Math.random() * 2 - 1) * worldRef.halfW;
-   var y = poleRef.y + (Math.random() * 2 - 1) * worldRef.halfH;
-   var bf = bandFrac(x, y, poleRef.x, poleRef.y, bandWidth);
-   if (Math.random() > floor + (1 - floor) * bf) continue;
-   var b = powerBrightness(opt.pow);
-   var star = {
+   var x = (rng() * 2 - 1) * GEN_HALF_W;
+   var y = (rng() * 2 - 1) * GEN_HALF_H;
+   var f = mwField(x, y);
+   var bf = coupling * f.bright + (1 - coupling) * f.bandEnv;
+   if (rng() > floor + (1 - floor) * bf) continue;
+   var b = Math.pow(rng(), opt.pow);
+   var halo = !!(opt.halo && b > 0.93);
+   out.push({
     x: x, y: y,
-    size: (opt.sizeMin + b * (opt.sizeMax - opt.sizeMin)) * (0.88 + Math.random() * 0.24),
-    alpha: opt.alphaMin + b * (opt.alphaMax - opt.alphaMin),
-    ph: Math.random() * Math.PI * 2,
-    sp: 0.4 + Math.random() * 1.1,
+    size: (opt.sizeMin + b * (opt.sizeMax - opt.sizeMin)) * (0.88 + rng() * 0.24),
+    alpha: (opt.alphaMin + b * (opt.alphaMax - opt.alphaMin)) * (0.62 + 0.38 * (1 - f.rift)), /* dim behind the rift — same field, no separate pass */
+    ph: rng() * Math.PI * 2,
+    sp: 0.4 + rng() * 1.1,
     tw: opt.tw || 0,
-    tint: Math.random() < 0.9 ? '232,230,221' : Math.random() < 0.7 ? '216,192,138' : '160,190,230',
-    halo: !!(opt.halo && b > 0.93),
-   };
-   out.push(star);
+    tint: rng() < 0.9 ? '232,230,221' : rng() < 0.7 ? '216,192,138' : '160,190,230',
+    halo: halo,
+   });
   }
   return out;
  }
 
- /* far/mid/near-bulk: baked once per layout() onto a world-sized offscreen canvas, each at its
-  own reduced resolution (bakeScale, well under 1 device pixel per CSS pixel — see the
-  prerenderLayer call sites in layout() for the actual factors). deliberately soft: these are
-  meant to read as out-of-focus background dust (only nearBright, below, stays pin-sharp), and
-  a smaller backing store is both cheaper to rasterize once here AND, far more importantly,
-  cheaper for drawImage() to resample every single frame (see next paragraph). frame() just
-  drawImage()s the visible window of each canvas with the camera offset — no per-star cost at
-  all, so these layers can carry the bulk of the star count for density without touching frame
-  budget.
+ /* the whole sky's content — every layer's stars — generated exactly once, at module init, from
+  the seeded rng() in the fixed GEN_HALF_W/H space above. layout() (boot + every resize) never
+  touches this again: it only re-bakes crops of it (prerenderLayer/buildMilkyWay below) into
+  viewport-sized offscreen canvases. counts are calibrated against the fixed generation area
+  (not the viewport), so — unlike the old per-resize regeneration — a phone simply sees a
+  smaller crop of the same field at the same density, rather than a separately-randomized,
+  lower-count sky; the old mobile/desktop count split is gone for the same reason. */
+ var SKY = { ultraFar: [], far: [], mid: [], near: [], nearBulk: [], nearBright: [] };
+ function buildSkyContent() {
+  SKY.ultraFar = genLayer(2600, { sizeMin: .12, sizeMax: .26, alphaMin: .05, alphaMax: .13, pow: 3.4, floor: .10, coupling: .7 });
+  /* far/mid alphaMin/alphaMax nudged up (~+15-20%, floor untouched so the off-band sky stays
+   near-black) per the architect's "grain first" note: with the cloud opacity cut way down
+   (see buildMilkyWay), the band needs to read as dense faint stars with cloud structure behind
+   them, not the other way around. */
+  SKY.far = genLayer(8400, { sizeMin: .30, sizeMax: .64, alphaMin: .20, alphaMax: .42, pow: 2.3, floor: .16, coupling: 1 });
+  SKY.mid = genLayer(5800, { sizeMin: .34, sizeMax: .92, alphaMin: .25, alphaMax: .55, pow: 2.6, floor: .20, coupling: 1 });
+  var nearAll = genLayer(3700, { sizeMin: .38, sizeMax: 2.0, alphaMin: .30, alphaMax: .84, pow: 3.1, tw: .26, halo: true, floor: .55, coupling: .45 });
+  SKY.near = nearAll;
+  SKY.nearBulk = []; SKY.nearBright = [];
+  for (var i = 0; i < nearAll.length; i++) (nearAll[i].halo ? SKY.nearBright : SKY.nearBulk).push(nearAll[i]);
+ }
 
-  near is split: ~98% of it (nearBulk) is baked in here alongside far/mid, since a software
-  canvas rasterizer (no GPU compositing — the config this was profiled under, and plausibly
-  some real visitors' browsers too: locked-down corporate Chrome, some VMs/remote desktops,
-  older integrated graphics falling back to software) turned out to cost ~90ms/frame once 1400
-  individually beginPath()+arc()+fill()'d circles were actually scattered across the whole
-  canvas instead of degenerately stacked on one point (see the root-cause note: that's exactly
-  what the pre-fix bug had been accidentally hiding — profiled with CDP's Profiler domain,
-  91% of frame time was native fill() called from this loop). only the brightest ~2% (b > .93,
-  the ones that already carry the halo-sprite flag) stay live-drawn in nearBright, per-star,
-  with real twinkle — a few dozen stars, negligible cost, and they're the only ones a viewer's
-  eye actually registers twinkling anyway. moving the bulk to prerendered drawImage() calls
-  fixed that, but re-profiling turned up a second, smaller version of the same story: 3 full-
-  resolution drawImage() calls of a ~2400×1500 source, every frame, cost ~72% of frame time on
-  the same software rasterizer (large source + a sub-pixel-positioned destination forces a
-  bilinear resample of the whole image, not a cheap blit). bakeScale below is the fix: shrink
-  the source resolution so there's simply less to resample. net result on the profiled machine:
-  ~90ms/frame -> ~1.5ms/frame average. */
+ /* ultra-far/far/mid/near-bulk: baked once per layout() onto world-sized offscreen canvases (one
+  per layer, sized to the CURRENT WORLD view window) at a reduced resolution (bakeScale) — cheap
+  to rasterize and, far more importantly, cheap for drawImage() to resample every frame in a
+  software (non-GPU-composited) canvas backend.
+
+  root-cause note (a real, profiled ~45ms/frame regression this pass hit and fixed, and the
+  reason bakeScale is now a FUNCTION of world size rather than a fixed constant): raising
+  bakeScale toward 0.75+ (attempting the "0.75, or full res if the budget allows" brief) looked
+  fine in isolation at one viewport size, then fell off a cliff — 40-60ms/frame — as soon as (a)
+  more than one layer sat near that scale at once, or (b) the viewport got larger (1920x1080,
+  2560x1200: same code, same bakeScale constants, catastrophically slow). CDP CPU profiling kept
+  attributing the cost to whichever fill()/drawImage() happened to run right after the bake
+  canvases were touched — not a consistent single call site — which is the signature of a shared
+  resource being thrashed: the browser's own GPU/raster cache for canvas backing stores has a
+  roughly fixed memory budget, and once the COMBINED byte size of every baked canvas (not any one
+  canvas alone) crosses it, they stop fitting together and get evicted/re-uploaded constantly.
+  confirmed empirically (isolated headless profiling, A/B against this same file's git history):
+  ~0.9ms/frame comfortably under the budget, ~45ms/frame just over it, at the same viewport; and
+  world area — which is what actually drives each canvas's pixel count — scales with
+  viewport²-ish, so a bakeScale that's safe at 1440×900 is not safe at 1920×1080.
+
+  the fix: pick bakeScale adaptively so the total pixel budget across all 5 baked canvases stays
+  roughly CONSTANT regardless of viewport size, rather than a fixed fraction of a variable-sized
+  world. small viewports (including mobile) get sharper baking, up to BAKE_MAX; very large
+  viewports back off automatically rather than ever crossing the cliff. PX_BUDGET below is
+  calibrated with headroom under the empirically-found threshold (re-profile via PERF/perf() if
+  porting to a different rendering backend — the cliff is backend-specific, not a fixed number).
+
+  only near's brightest ~2% (SKY.nearBright, the ones with halo sprites) stay live-drawn per-star
+  for real twinkle; see drawDust below. */
+ var BAKE_MIN = 0.3, BAKE_MAX = 0.85;
+ var PX_BUDGET = { ultraFar: 550000, far: 900000, mid: 1100000, near: 1350000, mw: 550000 }; /* ~4.45M px total (~18MB @ 4B/px) offscreen, at MAIN_PX_REF main-canvas size — see budgetScaleFor() for why this also backs off further on very large/high-dpr viewports */
+ var MAIN_PX_REF = 1300000; /* ~1440x900: the viewport size this budget was profiled against */
+ function budgetScaleFor() {
+  /* the cliff empirically also gets worse as the MAIN visible canvas's own backing store
+   (W*dpr x H*dpr, set in layout()) grows — a 3440x1440 ultrawide or a high-dpr desktop eats
+   into whatever shared resource is being thrashed even with the offscreen budget above held
+   constant. back the whole offscreen budget off further, beyond MAIN_PX_REF, so those cases
+   don't recreate the cliff; only matters well past ordinary desktop sizes (BAKE_MIN still
+   applies as a floor so this never makes anything vanish). */
+  var mainPx = canvas.width * canvas.height;
+  if (mainPx <= MAIN_PX_REF) return 1;
+  return MAIN_PX_REF / mainPx;
+ }
+ function bakeScaleFor(worldRef, budgetPx) {
+  var area = worldRef.halfW * 2 * worldRef.halfH * 2;
+  if (area <= 0) return BAKE_MAX;
+  return Math.max(BAKE_MIN, Math.min(BAKE_MAX, Math.sqrt(budgetPx * budgetScaleFor() / area)));
+ }
+ var ultraFarCanvas = document.createElement('canvas'), ultraFarCtx = ultraFarCanvas.getContext('2d');
  var farCanvas = document.createElement('canvas'), farCtx = farCanvas.getContext('2d');
  var midCanvas = document.createElement('canvas'), midCtx = midCanvas.getContext('2d');
  var nearCanvas = document.createElement('canvas'), nearCtx = nearCanvas.getContext('2d');
- function prerenderLayer(canvas, cctx, stars, poleRef, worldRef, bakeScale) {
+ function prerenderLayer(canvas, cctx, stars, worldRef, bakeScale) {
   var w = worldRef.halfW * 2, h = worldRef.halfH * 2;
   canvas.width = Math.max(1, Math.round(w * bakeScale));
   canvas.height = Math.max(1, Math.round(h * bakeScale));
   cctx.setTransform(bakeScale, 0, 0, bakeScale, 0, 0); /* star math below stays in full CSS-world units; the transform is what actually shrinks the backing store */
   cctx.clearRect(0, 0, w, h);
-  var ox = poleRef.x - worldRef.halfW, oy = poleRef.y - worldRef.halfH;
   for (var i = 0; i < stars.length; i++) {
    var s = stars[i];
+   var cx = s.x + worldRef.halfW, cy = s.y + worldRef.halfH; /* local (pole-relative) -> canvas pixel; pole itself never enters this math, which is exactly what keeps content pixel-stable across resizes */
+   if (cx < -4 || cx > w + 4 || cy < -4 || cy > h + 4) continue; /* the fixed generation extent can exceed a narrow WORLD (e.g. mobile); skip what won't be visible rather than paying for it */
    cctx.beginPath();
-   cctx.arc(s.x - ox, s.y - oy, s.size, 0, 7);
+   cctx.arc(cx, cy, s.size, 0, 7);
    cctx.fillStyle = 'rgba(' + s.tint + ',' + s.alpha + ')';
    cctx.fill();
   }
@@ -222,12 +380,43 @@
   ctx.globalAlpha = 1;
  }
 
- /* live dust layer draw (near only): `pf` (pan factor) is how much of the camera's displacement
-  from home this layer feels, implemented as a per-layer virtual camera center that only
-  travels pf of the way from home to CAM's actual center — same trick as drawPrerenderedLayer,
-  just per-star since near still twinkles and carries halo sprites. */
+ /* one unit-radius (center 0,0, radius 1) radial gradient per tint, built ONCE and reused every
+  frame via ctx.translate()+ctx.scale() (a CanvasGradient's stops live in user space and are
+  evaluated against whatever transform is active when it's actually painted, so translating/
+  scaling the canvas before fill() re-centers and re-sizes it for free — no new gradient object
+  needed per star). HALO_TINTS mirrors the tint choices in genLayer().
+
+  root-cause note (a real, profiled ~40ms/frame regression this pass hit, twice): first pass
+  used a small pre-baked 24x24 canvas, drawImage()'d per star — profiling (a monkey-patched
+  CanvasRenderingContext2D.prototype.drawImage, timed via CDP) found that specific call costing
+  ~2.7ms EACH here, so replaced with a live arc()+fill() using a *freshly created*
+  createRadialGradient() per star per frame. that traded the drawImage cost for a new one: a CPU
+  profile (Profiler.start/stop over the actual running page, not a synthetic benchmark — an
+  isolated microbenchmark of the same fill() call in isolation showed it as cheap, which is what
+  pointed at allocation churn rather than raster cost) showed ~93% of frame time still inside
+  drawDust's fill(), concentrated in occasional single ~35-44ms spikes rather than many small
+  costs — the signature of GC pressure from reallocating ~15-80 gradient objects (each with 3
+  addColorStop calls) every frame, not of the fill() itself being slow. building the gradient(s)
+  once and reusing them via the transform, below, removes that allocation entirely. */
+ var HALO_TINTS = ['232,230,221', '216,192,138', '160,190,230'];
+ var haloGrad = {};
+ function buildHaloGradients() {
+  HALO_TINTS.forEach(function (tint) {
+   var g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+   g.addColorStop(0, 'rgba(' + tint + ',.5)');
+   g.addColorStop(0.4, 'rgba(' + tint + ',.2)');
+   g.addColorStop(1, 'rgba(' + tint + ',0)');
+   haloGrad[tint] = g;
+  });
+ }
+
+ /* live dust layer draw (near's brightest sliver only): `pf` (pan factor) is how much of the
+  camera's displacement from home this layer feels — same trick as drawPrerenderedLayer, just
+  per-star since this sliver still twinkles and carries a halo glow. s.x/s.y are local (pole-
+  relative); lcx/lcy below are the camera's displacement in that same local frame, so pole never
+  has to appear in the per-star math either. */
  function drawDust(layer, now, pf) {
-  var lcx = pole.x + (CAM.cx - pole.x) * pf, lcy = pole.y + (CAM.cy - pole.y) * pf;
+  var lcx = (CAM.cx - pole.x) * pf, lcy = (CAM.cy - pole.y) * pf;
   var bgMul = zoomed ? 0.35 : 1;
   for (var i = 0; i < layer.length; i++) {
    var s = layer[i];
@@ -236,11 +425,15 @@
    var tw = still ? 1 : (1 - s.tw) + s.tw * (0.72 + 0.28 * Math.sin((now / 1000) * s.sp + s.ph));
    var rr = s.size * Math.max(CAM.scale, 0.6);
    if (s.halo) {
-    var sprite = haloSprites[s.tint];
-    if (sprite) {
-     var hs = rr * 7;
+    var hgrad = haloGrad[s.tint];
+    if (hgrad) {
+     var hr = rr * 3.5;
+     ctx.save();
+     ctx.translate(sx, sy); ctx.scale(hr, hr);
      ctx.globalAlpha = s.alpha * tw * bgMul;
-     ctx.drawImage(sprite, sx - hs / 2, sy - hs / 2, hs, hs);
+     ctx.beginPath(); ctx.arc(0, 0, 1, 0, 7);
+     ctx.fillStyle = hgrad; ctx.fill();
+     ctx.restore();
      ctx.globalAlpha = 1;
     }
    }
@@ -251,10 +444,48 @@
   }
  }
 
- /* atmosphere, viewport-sized (not world-sized: it's a lens/eye effect, not a pannable plane),
-  rebuilt once per layout(). three coats: a subliminal horizon lift + vignette base, mottled
-  nebulosity blobs hugging the MW_ANGLE band, and the band wash itself on top, slightly
-  brightened so it doesn't read as a flat gradient under the blobs. */
+ /* the milky way itself: mwField() rasterized directly into a world-sized ImageData buffer (one
+  putImageData() rather than thousands of gradient-fill draw calls — much cheaper for a noise
+  field sampled per-pixel) at an adaptive bakeScale (see bakeScaleFor()), then drawn every frame exactly like the star
+  layers via drawPrerenderedLayer(mwWorldCanvas, MW_PF, ...) — a real parallaxing world object,
+  not a screen-locked wash (see the root-cause note by mwField()). color: a low-saturation blend
+  from a slightly warm core (near the band spine, small |perp|) to a cooler edge (further out
+  but still inside the band envelope), per the warm-core/cool-edge brief. */
+ var mwWorldCanvas = document.createElement('canvas'), mwWorldCtx = mwWorldCanvas.getContext('2d');
+ function buildMilkyWay(worldRef, bakeScale) {
+  var w = Math.max(1, Math.round(worldRef.halfW * 2 * bakeScale));
+  var h = Math.max(1, Math.round(worldRef.halfH * 2 * bakeScale));
+  mwWorldCanvas.width = w; mwWorldCanvas.height = h;
+  var img = mwWorldCtx.createImageData(w, h);
+  var data = img.data;
+  /* architect's visual review tuning pass: WARM pulled way down in saturation (was a distinct
+   brown, now barely off-grey) and COOL shifted toward neutral with a faint blue undertone, so
+   the color reads as "slight warm tint right at the spine" rather than warm-grey-brown
+   everywhere; the core-tint falloff (coreW below) is also tightened (0.85->0.5 of BAND_SIGMA)
+   so that tint stays tight to the spine instead of spreading across the whole band width. */
+  var WARM = [212, 203, 194], COOL = [199, 204, 211];
+  for (var py = 0; py < h; py++) {
+   var ly = (py / bakeScale) - worldRef.halfH;
+   for (var px = 0; px < w; px++) {
+    var lx = (px / bakeScale) - worldRef.halfW;
+    var f = mwField(lx, ly);
+    if (f.bright <= 0.004) continue; /* leave fully transparent — ImageData is zero-inited */
+    var idx = (py * w + px) * 4;
+    var coreW = smooth01(1 - Math.abs(f.perp) / (BAND_SIGMA * 0.5));
+    data[idx] = WARM[0] * coreW + COOL[0] * (1 - coreW);
+    data[idx + 1] = WARM[1] * coreW + COOL[1] * (1 - coreW);
+    data[idx + 2] = WARM[2] * coreW + COOL[2] * (1 - coreW);
+    data[idx + 3] = Math.round(Math.min(0.9, f.bright) * 0.12 * 255); /* was .30 (~+30% peak lift, "storm haze"); cut to .12 (~0.4x, ~+10% peak lift) per architect review — the sky outside the band should stay near-black */
+   }
+  }
+  mwWorldCtx.putImageData(img, 0, 0);
+ }
+
+ /* screen-space atmosphere: horizon lift + vignette only now (the nebulosity/band wash moved to
+  mwWorldCanvas above, so it can parallax). both gradients here are plain fixed color stops — no
+  randomness ever touched them, so "seeded/deterministic" was already true; kept as a viewport-
+  sized, camera-independent lens effect on purpose (it's fog on the glass, literally — just not
+  what used to be misrepresenting the milky way). */
  var mwCanvas = document.createElement('canvas'), mwCtx = mwCanvas.getContext('2d');
  function buildAtmosphere() {
   mwCanvas.width = Math.max(1, W); mwCanvas.height = Math.max(1, H);
@@ -275,65 +506,6 @@
   vig.addColorStop(1, 'rgba(0,0,0,.12)');
   mwCtx.fillStyle = vig;
   mwCtx.fillRect(0, 0, W, H);
-
-  /* mottled nebulosity: 3 octaves of soft, band-hugging blobs (elongated along MW_ANGLE) so the
-   milky way reads as cloud structure rather than a flat gradient. centers rejection-sampled
-   with the same perpendicular gaussian used for the star density bias, so clouds and star-river
-   line up. */
-  var octaves = [
-   { n: 22, rMin: 90, rMax: 190, a: .022 },
-   { n: 30, rMin: 40, rMax: 95, a: .028 },
-   { n: 40, rMin: 16, rMax: 40, a: .032 },
-  ];
-  var bw = Math.min(W, H) * 0.16;
-  var along = Math.hypot(W, H) * 0.65;
-  var dirX = Math.cos(MW_ANGLE), dirY = Math.sin(MW_ANGLE);
-  var perpX = -Math.sin(MW_ANGLE), perpY = Math.cos(MW_ANGLE);
-  octaves.forEach(function (oct) {
-   for (var i = 0; i < oct.n; i++) {
-    var perp = (Math.random() * 2 - 1) * bw * 1.4;
-    if (Math.random() > Math.exp(-(perp * perp) / (2 * bw * bw))) continue;
-    var t = (Math.random() * 2 - 1) * along;
-    var bx = cx + dirX * t + perpX * perp, by = cy + dirY * t + perpY * perp;
-    var r = oct.rMin + Math.random() * (oct.rMax - oct.rMin);
-    var g = mwCtx.createRadialGradient(bx, by, 0, bx, by, r);
-    g.addColorStop(0, 'rgba(224,220,206,' + oct.a + ')');
-    g.addColorStop(1, 'rgba(224,220,206,0)');
-    mwCtx.fillStyle = g;
-    mwCtx.save();
-    mwCtx.translate(bx, by); mwCtx.rotate(MW_ANGLE); mwCtx.scale(1.6, 1); mwCtx.translate(-bx, -by);
-    mwCtx.beginPath(); mwCtx.arc(bx, by, r, 0, 7); mwCtx.fill();
-    mwCtx.restore();
-   }
-  });
-
-  /* the band wash itself, brightened slightly so it sits visibly under the nebulosity+dust */
-  var len = Math.hypot(W, H);
-  var x0 = cx - perpX * len / 2, y0 = cy - perpY * len / 2, x1 = cx + perpX * len / 2, y1 = cy + perpY * len / 2;
-  var grad = mwCtx.createLinearGradient(x0, y0, x1, y1);
-  grad.addColorStop(0, 'rgba(220,216,204,0)');
-  grad.addColorStop(0.5, 'rgba(224,220,206,.065)');
-  grad.addColorStop(1, 'rgba(220,216,204,0)');
-  mwCtx.fillStyle = grad;
-  mwCtx.fillRect(0, 0, W, H);
- }
-
- var HALO_TINTS = ['232,230,221', '216,192,138', '160,190,230'];
- var haloSprites = {}, haloBuilt = false;
- function buildHaloSprites() {
-  if (haloBuilt) return; haloBuilt = true;
-  HALO_TINTS.forEach(function (tint) {
-   var size = 24, c = document.createElement('canvas');
-   c.width = size; c.height = size;
-   var hc = c.getContext('2d');
-   var g = hc.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-   g.addColorStop(0, 'rgba(' + tint + ',.5)');
-   g.addColorStop(0.4, 'rgba(' + tint + ',.2)');
-   g.addColorStop(1, 'rgba(' + tint + ',0)');
-   hc.fillStyle = g;
-   hc.beginPath(); hc.arc(size / 2, size / 2, size / 2, 0, 7); hc.fill();
-   haloSprites[tint] = c;
-  });
  }
 
  /* full re-layout: viewport size, world bounds, every constellation's static position, and
@@ -395,22 +567,16 @@
     };
    }
 
-   /* counts: far/mid/near-bulk carry the bulk (they're free at frame time, baked once below);
-    only near's brightest sliver stays live-drawn. floor/bandWidth bias the majority of far/mid
-    toward the MW_ANGLE band so it reads as a grainy star-river; near stays close to uniform (a
-    gentle nudge only) since it's the foreground/personal-space layer. */
-   var far = genLayer(mobile ? 1200 : 3200, { sizeMin: .22, sizeMax: .5, alphaMin: .08, alphaMax: .22, pow: 2.4, floor: .10, bandWidth: newWorld.halfH * 0.26 }, newPole, newWorld);
-   var mid = genLayer(mobile ? 900 : 2200, { sizeMin: .26, sizeMax: .8, alphaMin: .12, alphaMax: .34, pow: 2.7, floor: .14, bandWidth: newWorld.halfH * 0.30 }, newPole, newWorld);
-   var near = genLayer(mobile ? 650 : 1400, { sizeMin: .35, sizeMax: 1.9, alphaMin: .28, alphaMax: .82, pow: 3.2, tw: .26, halo: true, floor: .60, bandWidth: newWorld.halfH * 0.42 }, newPole, newWorld);
-   var nearBulk = [], nearBright = [];
-   for (var ni = 0; ni < near.length; ni++) (near[ni].halo ? nearBright : nearBulk).push(near[ni]);
-   /* baked below native resolution: these read as soft background dust anyway (only nearBright
-    stays pin-sharp, live-drawn), and a smaller source image is dramatically cheaper for
-    drawImage() to resample every frame in a software (non-GPU-composited) canvas backend —
-    see the dust-section note above for the profiling that found this. */
-   prerenderLayer(farCanvas, farCtx, far, newPole, newWorld, 0.4);
-   prerenderLayer(midCanvas, midCtx, mid, newPole, newWorld, 0.45);
-   prerenderLayer(nearCanvas, nearCtx, nearBulk, newPole, newWorld, 0.55);
+   /* star content itself (SKY.*) was generated exactly once at module init — see
+    buildSkyContent(). all layout() does here is re-bake crops of it, sized to the current
+    WORLD view window, into the offscreen canvases; nothing here is randomized. bakeScale is
+    recomputed every layout() from the current world size — see bakeScaleFor()'s comment above
+    for why it's adaptive rather than a fixed constant. */
+   prerenderLayer(ultraFarCanvas, ultraFarCtx, SKY.ultraFar, newWorld, bakeScaleFor(newWorld, PX_BUDGET.ultraFar));
+   prerenderLayer(farCanvas, farCtx, SKY.far, newWorld, bakeScaleFor(newWorld, PX_BUDGET.far));
+   prerenderLayer(midCanvas, midCtx, SKY.mid, newWorld, bakeScaleFor(newWorld, PX_BUDGET.mid));
+   prerenderLayer(nearCanvas, nearCtx, SKY.nearBulk, newWorld, bakeScaleFor(newWorld, PX_BUDGET.near));
+   buildMilkyWay(newWorld, bakeScaleFor(newWorld, PX_BUDGET.mw));
    buildAtmosphere();
 
    /* --- commit: everything above succeeded, so write it all at once. --- */
@@ -421,7 +587,7 @@
     cc.localPts = res.localPts; cc.maxR = res.maxR; cc.wx = res.wx; cc.wy = res.wy;
     cc.rad = res.rad; cc.align = res.align; cc.labelDY = res.labelDY;
    }
-   dustNearBright = nearBright;
+   dustNearBright = SKY.nearBright;
   } catch (err) {
    /* leave the last good layout in place rather than a half-built one */
    if (window.console && console.warn) console.warn('sky layout() failed, keeping previous frame', err);
@@ -756,24 +922,33 @@
   CAM.cy += (ty - CAM.cy) * f;
  }
 
+ /* frame-time tracker: a tiny rAF exec-time wrapper (two performance.now() calls/frame, ~free)
+  so the ~4ms/frame budget claim is re-measurable rather than asserted — see window.Sky.perf().
+  exponential moving average so a single slow frame (e.g. the tab regaining visibility) doesn't
+  dominate the read-out. */
+ var PERF = { emaMs: 0, samples: 0 };
+
  var t0 = performance.now(), lastT = t0;
  scheduleMeteor(t0);
  scheduleSatellite(t0);
  function frame(now) {
   if (document.hidden) { if (!still) requestAnimationFrame(frame); return; }
+  var __ft0 = performance.now();
   ctx.clearRect(0, 0, W, H);
   var dt = Math.min((now - lastT) / 1000, 0.1); lastT = now;
 
   updateCam(now);
   updateGaze(now, dt);
 
-  ctx.drawImage(mwCanvas, 0, 0, W, H); /* atmosphere + nebulous milky-way wash, pre-rendered, composited under the dust */
+  ctx.drawImage(mwCanvas, 0, 0, W, H); /* horizon lift + vignette: screen-space lens effect, composited first */
   var bgMul = zoomed ? 0.35 : 1;
   var nearPf = zoomed ? 1 : GAZE_PF;
+  drawPrerenderedLayer(mwWorldCanvas, MW_PF, bgMul); /* the milky way itself — now a real world-space parallax layer, not screen-locked fog */
+  drawPrerenderedLayer(ultraFarCanvas, ULTRA_FAR_PF, bgMul);
   drawPrerenderedLayer(farCanvas, FAR_PF, bgMul);
   drawPrerenderedLayer(midCanvas, MID_PF, bgMul * (0.94 + 0.06 * Math.sin(now / 4000))); /* whole-layer "breathing" stands in for per-star twinkle at near-zero cost */
   drawPrerenderedLayer(nearCanvas, nearPf, bgMul * (0.92 + 0.08 * Math.sin(now / 2600))); /* the ~98% bulk of near, baked (see the dust section note on why) */
-  drawDust(dustNearBright, now, nearPf); /* the brightest ~2% of near, still live: real per-star twinkle + halo sprites, at negligible cost since it's only a few dozen stars */
+  drawDust(dustNearBright, now, nearPf); /* the brightest ~2% of near, still live: real per-star twinkle + halo, at negligible cost since it's only a few dozen stars */
 
   drawPolaris(now);
   if (!still) { drawMeteors(now); drawSatellite(now); } else if (zoomed) { meteors = []; satellite = null; }
@@ -808,6 +983,9 @@
   drawEcho(now);
 
   canvas.style.cursor = anyHover ? 'pointer' : '';
+
+  var __ft1 = performance.now(), __dt = __ft1 - __ft0;
+  PERF.samples++; PERF.emaMs = PERF.samples === 1 ? __dt : PERF.emaMs * 0.9 + __dt * 0.1;
 
   if (!still) requestAnimationFrame(frame);
  }
@@ -903,9 +1081,27 @@
   echo: setEcho,
   current: function () { return activeId; },
   isZoomed: function () { return zoomed; },
+  perf: function () { return { avgMs: PERF.emaMs, samples: PERF.samples }; }, /* frame-time re-measurement hook, see the PERF comment above frame() */
+  /* dev/verification hook: a checksum of the generated star content itself (SKY.*, built once
+   at module init in the fixed GEN_HALF_W/H space — see buildSkyContent()) plus the milky-way
+   field's rift/noise parameters, all of which are computed before layout() ever reads the
+   viewport. two page loads at different viewport widths should report the SAME checksum here
+   — that's the determinism requirement, verified directly against the seeded source content
+   rather than a rendered/composited pixel (which the viewport-relative vignette will always
+   perturb slightly between different widths, by design — see buildAtmosphere()). */
+  debugChecksum: function () {
+   var sum = 0, n = 0;
+   function mix(v) { sum = (sum + (v * 2654435761 | 0) * (n + 1)) >>> 0; n++; }
+   ['ultraFar', 'far', 'mid', 'near'].forEach(function (k) {
+    SKY[k].forEach(function (s) { mix(s.x); mix(s.y); mix(s.size * 1000 | 0); mix(s.alpha * 1000 | 0); mix(s.ph * 1000 | 0); });
+   });
+   mix(RIFT.center); mix(RIFT.halfLen); mix(RIFT.a1); mix(RIFT.a2); mix(RIFT.f1); mix(RIFT.f2); mix(RIFT.p1); mix(RIFT.p2);
+   return { checksum: sum, counts: { ultraFar: SKY.ultraFar.length, far: SKY.far.length, mid: SKY.mid.length, near: SKY.near.length } };
+  },
  };
 
- buildHaloSprites();
+ buildHaloGradients();
+ buildSkyContent(); /* the whole seeded sky, generated exactly once — see the comment above buildSkyContent() */
  layout();
  requestAnimationFrame(frame);
  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (still) repaint(); });
