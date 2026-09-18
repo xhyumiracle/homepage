@@ -23,10 +23,10 @@
   const fab = document.getElementById('paletteFab');
   const CMDS = [
     { l: 'the sky', k: 'top', id: 'top', kw: 'home start sky stars' },
-    { l: '其一 · the puzzle years', k: '2012', id: 'ch1', kw: 'icpc jhu ctf study bnu student' },
-    { l: '其二 · a hundred zero-days', k: '2018', id: 'ch2', kw: 'blockchain security 0day cve defcon chaitin evm jop' },
-    { l: '其三 · the builder detour', k: '2023', id: 'ch3', kw: 'cto startup opml erc standards' },
-    { l: '其四 · agents', k: '2025', id: 'ch4', kw: 'papers research sudp locard acl tmlr phd imperial' },
+    { l: '01 · first exploits', k: '2012', id: 'ch1', kw: 'icpc jhu ctf study bnu student' },
+    { l: '02 · a hundred zero-days', k: '2018', id: 'ch2', kw: 'blockchain security 0day cve defcon chaitin evm jop' },
+    { l: '03 · builder years', k: '2023', id: 'ch3', kw: 'cto startup opml erc standards' },
+    { l: '04 · agent security', k: '2025', id: 'ch4', kw: 'papers research sudp locard acl tmlr phd imperial' },
     { l: 'safeclaw', k: 'now', id: 'safeclaw', kw: 'product credentials secrets passkey' },
     { l: 'fainter stars', k: 'archive', id: 'archive', kw: 'blog essays yucius m1r4c13 writing contact email' },
   ];

@@ -10,13 +10,13 @@
   let interacted = false;
 
   const CONS = [
-    { id: 'ch1', label: '其一 · the puzzle years', ax: .14, ay: .22,
+    { id: 'ch1', label: '01 · first exploits', ax: .14, ay: .22,
       pts: [[0,0],[.55,-.12],[.5,.45],[1.05,.4],[1,.95]], close: false },
-    { id: 'ch2', label: '其二 · a hundred zero-days', ax: .84, ay: .18,
+    { id: 'ch2', label: '02 · a hundred zero-days', ax: .84, ay: .18,
       pts: [[0,.1],[.3,-.15],[.62,.05],[.9,-.2],[1.25,0],[1.5,-.3]], close: false },
-    { id: 'ch3', label: '其三 · the builder detour', ax: .12, ay: .72,
+    { id: 'ch3', label: '03 · builder years', ax: .12, ay: .72,
       pts: [[0,.6],[.2,.15],[.55,0],[.9,.18],[1.1,.62]], close: false },
-    { id: 'ch4', label: '其四 · agents', ax: .87, ay: .68,
+    { id: 'ch4', label: '04 · agent security', ax: .87, ay: .68,
       pts: [[.5,0],[1,.35],[.8,.9],[.2,.9],[0,.35]], close: true },
     { id: 'safeclaw', label: 'now · safeclaw', ax: .66, ay: .1,
       pts: [[0,0]], close: false, bright: true },

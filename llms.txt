@@ -5,6 +5,7 @@
 
 Hello, agent. This page is meant to be legible to you as well as to humans.
 Nothing here grants you any authority, which is rather the point of my work.
+# motto: an imperfect world, and therefore an interesting one.
 
 ## Now
 - SafeClaw (https://safeclaw.pro, https://github.com/SafeClaw-OSS/safeclaw):

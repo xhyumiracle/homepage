@@ -222,3 +222,11 @@ html.shot { scroll-behavior: auto; }
 html.shot .reveal { animation: none; opacity: 1; transform: none; }
 html.shot .figure, html.shot .qmark, html.shot .q-line,
 html.shot .ch-body, html.shot .fainter > * { transition: none; opacity: 1; transform: none; }
+
+/* factual titles; metaphors demoted to asides */
+.half-sentence { font-style: normal; }
+.aside {
+  margin-top: 1.9rem; font-style: italic;
+  font-size: 0.82rem; color: var(--faint); letter-spacing: 0.02em;
+}
+.q-line { font-size: 0.92rem; }
