@@ -7,7 +7,7 @@
 <title>Xiaohang Yu · xhyumiracle</title>
 <meta name="description" content="Xiaohang Yu (xhyumiracle). Research at the intersection of agentic AI, cryptography, and system security. Co-founder of SafeClaw.">
 <meta property="og:title" content="Xiaohang Yu · xhyumiracle">
-<meta property="og:description" content="An imperfect world, and just as I'd have it.">
+<meta property="og:description" content="Imperfect, therefore fascinating.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/main.css">
 </head>
@@ -16,117 +16,52 @@
 <canvas id="sky" aria-hidden="true"></canvas>
 <div class="grain" aria-hidden="true"></div>
 
-<!-- S0 · the sky -->
-<header class="sky-head" id="top">
-  <div class="sky-copy">
-    <p class="mono eyebrow reveal">xhyumiracle</p>
-    <h1 class="name reveal d1">Xiaohang Yu <span class="cn-name">于晓航</span></h1>
-    <p class="slogan-cn reveal d2">这世界或许并不完美，但也因此令人着迷</p>
-    <p class="slogan-en reveal d3">An imperfect world, and therefore an interesting one.</p>
-    <p class="mono fields reveal d4">agentic ai &middot; cryptography &middot; system security</p>
-  </div>
-  <p class="mono hint reveal d5" aria-hidden="true">the stars are clickable<span class="hint-sep">&nbsp;&middot;&nbsp;</span>scroll<span class="down">&darr;</span></p>
+<!-- top-left: identity -->
+<header class="id-block">
+  <p class="mono eyebrow">xhyumiracle</p>
+  <h1 class="name">Xiaohang Yu <span class="cn-name">于晓航</span></h1>
+  <p class="slogan-cn">这世界或许并不完美，<br>但也因此令人着迷</p>
+  <p class="slogan-en">Imperfect, therefore fascinating.</p>
+  <p class="mono fields">agentic ai &middot; cryptography &middot; system security</p>
 </header>
 
-<!-- S1 · the question -->
-<section class="question" id="question" aria-label="the question">
-  <div class="q-inner">
-    <div class="qmark" aria-hidden="true">?</div>
-    <svg class="figure" viewBox="0 0 120 150" aria-hidden="true">
-      <circle cx="60" cy="30" r="13" class="fg-stroke"/>
-      <path d="M32 74 Q60 54 88 74" class="fg-stroke"/>
-      <path d="M40 74 L38 128" class="fg-stroke fg-fade"/>
-      <path d="M80 74 L82 128" class="fg-stroke fg-fade"/>
-    </svg>
-    <p class="q-line q1">Most of what moves the world never survives it.<br>
-    What does is half a sentence, overheard by someone curious enough to stop.</p>
-  </div>
-</section>
+<!-- right: sky chart legend -->
+<nav class="legend" aria-label="index of this sky">
+  <p class="mono legend-title">index of this sky</p>
+  <button class="legend-row" data-panel="ch1">
+    <span class="lr-key mono">01</span>
+    <span class="lr-body"><span class="lr-name">first exploits</span>
+    <span class="lr-tags mono">ICPC silver &times;2 &middot; JHU &middot; OSCP &middot; 2012&ndash;2018</span></span>
+  </button>
+  <button class="legend-row" data-panel="ch2">
+    <span class="lr-key mono">02</span>
+    <span class="lr-body"><span class="lr-name">a hundred zero-days</span>
+    <span class="lr-tags mono">100 0-days &middot; DEFCON 27 &middot; CNVD standard &middot; 2018&ndash;2023</span></span>
+  </button>
+  <button class="legend-row" data-panel="ch3">
+    <span class="lr-key mono">03</span>
+    <span class="lr-body"><span class="lr-name">builder years</span>
+    <span class="lr-tags mono">CTO &middot; opML &middot; ERC-7007/7641 &middot; 2023&ndash;2025</span></span>
+  </button>
+  <button class="legend-row" data-panel="ch4">
+    <span class="lr-key mono">04</span>
+    <span class="lr-body"><span class="lr-name">agent security</span>
+    <span class="lr-tags mono">SUDP &middot; ACL &middot; TMLR &middot; Imperial PhD &middot; 2025&ndash;now</span></span>
+  </button>
+  <button class="legend-row sc" data-panel="safeclaw">
+    <span class="lr-key mono">&#9733;</span>
+    <span class="lr-body"><span class="lr-name sc-tint">SafeClaw</span>
+    <span class="lr-tags mono">phantom credentials &middot; passkey grants &middot; live</span></span>
+  </button>
+  <button class="legend-row dim" data-panel="archive">
+    <span class="lr-key mono">&middot;&middot;</span>
+    <span class="lr-body"><span class="lr-name">fainter stars</span>
+    <span class="lr-tags mono">old notes, being restored</span></span>
+  </button>
+</nav>
 
-<!-- S2 · 01 -->
-<section class="chapter" id="ch1">
-  <span class="cn-ghost" aria-hidden="true">一</span>
-  <div class="ch-body">
-    <p class="mono ch-meta">01 · 2012&ndash;2018</p>
-    <h2 class="half-sentence">From algorithm contests to first exploits</h2>
-    <ul class="evidence">
-      <li>B.S. in Computer Science, Beijing Normal University. National first prize in mathematical modeling, ranked 293 of 25,347 teams. ACM-ICPC Asia Regional silver medal, twice.</li>
-      <li>M.S. in Security Informatics, Johns Hopkins University, on a fully funded national scholarship. Machine learning work with JHU Applied Physics Laboratory, closed with an invited talk.</li>
-      <li>OSCP, 2017. Nights spent on pwnable.kr and VulnHub, written up on a study blog signed <span class="mono">M1r4c13</span>.</li>
-    </ul>
-  </div>
-</section>
-
-<!-- S3 · 02 -->
-<section class="chapter alt" id="ch2">
-  <span class="cn-ghost" aria-hidden="true">二</span>
-  <div class="ch-body">
-    <p class="mono ch-meta">02 · 2018&ndash;2023</p>
-    <h2 class="half-sentence">A hundred zero-days in blockchain infrastructure</h2>
-    <ul class="evidence">
-      <li>Founded and led one of China&rsquo;s earliest blockchain security teams, as Head of Blockchain Security at Chaitin Tech.</li>
-      <li>Around 100 zero-day vulnerabilities in the consensus, P2P and verification layers of major layer-1 chains, across roughly a million lines of audited code. Five CVEs, including novel vulnerability classes.</li>
-      <li>EVM Jump-Oriented Programming: the first adaptation of JOP to the Ethereum VM. Debuted as a Real World CTF 2018 Finals challenge, presented at <a href="https://github.com/xhyumiracle/defcon27">DEFCON 27 Blockchain Village</a>, and became a recurring blockchain CTF category.</li>
-      <li>Technical lead of China&rsquo;s first national blockchain vulnerability scoring standard (CNVD).</li>
-      <li>DEF CON CTF World Finals, 3rd place, with Tea Deliverers, 2021.</li>
-    </ul>
-    <p class="aside">adversaries in the moment, companions in history.</p>
-  </div>
-</section>
-
-<!-- S4 · 03 -->
-<section class="chapter" id="ch3">
-  <span class="cn-ghost" aria-hidden="true">三</span>
-  <div class="ch-body">
-    <p class="mono ch-meta">03 · 2023&ndash;2025</p>
-    <h2 class="half-sentence">From breaking to building: CTO, opML, two ERC standards</h2>
-    <ul class="evidence">
-      <li>Technical co-founder and CTO of a venture-backed blockchain infrastructure company. Built and led a team of 10+ engineers.</li>
-      <li>Core contributor to opML, ERC-7007 and ERC-7641: open standards for verifiable AI and its economics on-chain.</li>
-    </ul>
-  </div>
-</section>
-
-<!-- S5 · 04 -->
-<section class="chapter alt" id="ch4">
-  <span class="cn-ghost" aria-hidden="true">四</span>
-  <div class="ch-body">
-    <p class="mono ch-meta">04 · 2025&ndash;now</p>
-    <h2 class="half-sentence">Agent security: SUDP, forensics, and RL post-training</h2>
-    <ul class="evidence">
-      <li>PhD candidate in Computer Science, Imperial College London.</li>
-      <li><a href="https://github.com/xhyumiracle/sudp">SUDP</a>, first author: formalizes the agent secret-use problem, then solves it. Each human approval becomes a single-use grant, cryptographically bound to one exact operation.</li>
-      <li><a href="https://github.com/xhyumiracle/locard">LOCARD</a>, agentic blockchain forensics, IEEE ICBC 2026.</li>
-      <li>Scaling behavior of RL post-training for LLMs, ACL 2026 main conference.</li>
-      <li>A survey of agentic reinforcement learning, TMLR 2025, co-first author.</li>
-    </ul>
-    <p class="aside">security is the study of unexpected behaviors.</p>
-  </div>
-</section>
-
-<!-- S6 · SafeClaw -->
-<section class="safeclaw" id="safeclaw">
-  <div class="sc-star" aria-hidden="true"></div>
-  <div class="ch-body">
-    <p class="mono ch-meta">now · <span class="sc-tint">SafeClaw</span></p>
-    <h2 class="half-sentence">An agent that holds your API key holds your full authority. Every call, forever.</h2>
-    <p class="sc-answer">SafeClaw ends that. Agents only ever see phantom credentials; a local proxy injects the real secret at the network edge, and sensitive calls wait for a passkey tap. Each tap is a single-use grant bound to one exact operation, so even a fully compromised agent cannot spend your authority.</p>
-    <p class="sc-ship mono">co-founded 2026 · production stack built solo in three months · open source</p>
-    <p class="sc-links">
-      <a href="https://safeclaw.pro">safeclaw.pro</a>
-      <a href="https://github.com/SafeClaw-OSS/safeclaw">github</a>
-      <a href="https://github.com/xhyumiracle/sudp">the paper behind it</a>
-    </p>
-  </div>
-</section>
-
-<!-- S7 · fainter stars -->
-<footer class="fainter" id="archive">
-  <p class="mono ch-meta">fainter stars</p>
-  <ul class="faint-list">
-    <li><span class="faint-dead">notes on auditing blockchains</span><span class="faint-note">being restored from a 2021 manuscript</span></li>
-    <li><span class="faint-dead">M1r4c13</span><span class="faint-note">51 study notes from 2017 and 2018, being restored</span></li>
-  </ul>
+<!-- bottom-left: contact + status -->
+<footer class="foot">
   <p class="contact">
     <a href="https://github.com/xhyumiracle">github</a>
     <a href="https://scholar.google.com/citations?user=WURsNDYAAAAJ">scholar</a>
@@ -134,8 +69,78 @@
     <a href="mailto:xhyumiracle@gmail.com">email</a>
   </p>
   <p class="mono status-line">agent: xhyumiracle &middot; status: building safeclaw &middot; approvals: required</p>
-  <p class="coda"><span class="cn-inline">这世界或许并不完美，但也因此令人着迷。</span></p>
 </footer>
+
+<p class="mono hint" aria-hidden="true">click a constellation &middot; / to query</p>
+
+<!-- panels -->
+<div class="veil" id="veil" hidden></div>
+
+<section class="panel" id="ch1" hidden aria-modal="true" role="dialog" aria-label="01 first exploits" tabindex="-1">
+  <div class="panel-head"><p class="mono ch-meta">01 &middot; 2012&ndash;2018</p><button class="panel-x mono" data-close>&times;</button></div>
+  <h2 class="panel-title">From algorithm contests to first exploits</h2>
+  <ul class="evidence">
+    <li>B.S. in Computer Science, Beijing Normal University. National first prize in mathematical modeling, ranked 293 of 25,347 teams. ACM-ICPC Asia Regional silver medal, twice.</li>
+    <li>M.S. in Security Informatics, Johns Hopkins University, on a fully funded national scholarship. Machine learning work with JHU Applied Physics Laboratory, closed with an invited talk.</li>
+    <li>OSCP, 2017. Nights spent on pwnable.kr and VulnHub, written up on a study blog signed <span class="mono">M1r4c13</span>.</li>
+  </ul>
+</section>
+
+<section class="panel" id="ch2" hidden aria-modal="true" role="dialog" aria-label="02 a hundred zero-days" tabindex="-1">
+  <div class="panel-head"><p class="mono ch-meta">02 &middot; 2018&ndash;2023</p><button class="panel-x mono" data-close>&times;</button></div>
+  <h2 class="panel-title">A hundred zero-days in blockchain infrastructure</h2>
+  <ul class="evidence">
+    <li>Founded and led one of China&rsquo;s earliest blockchain security teams, as Head of Blockchain Security at Chaitin Tech.</li>
+    <li>Around 100 zero-day vulnerabilities in the consensus, P2P and verification layers of major layer-1 chains, across roughly a million lines of audited code. Five CVEs, including novel vulnerability classes.</li>
+    <li>EVM Jump-Oriented Programming: the first adaptation of JOP to the Ethereum VM. Debuted as a Real World CTF 2018 Finals challenge, presented at <a href="https://github.com/xhyumiracle/defcon27">DEFCON 27 Blockchain Village</a>, and became a recurring blockchain CTF category.</li>
+    <li>Technical lead of China&rsquo;s first national blockchain vulnerability scoring standard (CNVD).</li>
+    <li>DEF CON CTF World Finals, 3rd place, with Tea Deliverers, 2021.</li>
+  </ul>
+  <p class="aside">adversaries in the moment, companions in history.</p>
+</section>
+
+<section class="panel" id="ch3" hidden aria-modal="true" role="dialog" aria-label="03 builder years" tabindex="-1">
+  <div class="panel-head"><p class="mono ch-meta">03 &middot; 2023&ndash;2025</p><button class="panel-x mono" data-close>&times;</button></div>
+  <h2 class="panel-title">From breaking to building: CTO, opML, two ERC standards</h2>
+  <ul class="evidence">
+    <li>Technical co-founder and CTO of a venture-backed blockchain infrastructure company. Built and led a team of 10+ engineers.</li>
+    <li>Core contributor to opML, ERC-7007 and ERC-7641: open standards for verifiable AI and its economics on-chain.</li>
+  </ul>
+</section>
+
+<section class="panel" id="ch4" hidden aria-modal="true" role="dialog" aria-label="04 agent security" tabindex="-1">
+  <div class="panel-head"><p class="mono ch-meta">04 &middot; 2025&ndash;now</p><button class="panel-x mono" data-close>&times;</button></div>
+  <h2 class="panel-title">Agent security: SUDP, forensics, and RL post-training</h2>
+  <ul class="evidence">
+    <li>PhD candidate in Computer Science, Imperial College London.</li>
+    <li><a href="https://github.com/xhyumiracle/sudp">SUDP</a>, first author: formalizes the agent secret-use problem, then solves it. Each human approval becomes a single-use grant, cryptographically bound to one exact operation.</li>
+    <li><a href="https://github.com/xhyumiracle/locard">LOCARD</a>, agentic blockchain forensics, IEEE ICBC 2026.</li>
+    <li>Scaling behavior of RL post-training for LLMs, ACL 2026 main conference.</li>
+    <li>A survey of agentic reinforcement learning, TMLR 2025, co-first author.</li>
+  </ul>
+  <p class="aside">security is the study of unexpected behaviors.</p>
+</section>
+
+<section class="panel" id="safeclaw" hidden aria-modal="true" role="dialog" aria-label="SafeClaw" tabindex="-1">
+  <div class="panel-head"><p class="mono ch-meta">now &middot; <span class="sc-tint">SafeClaw</span></p><button class="panel-x mono" data-close>&times;</button></div>
+  <h2 class="panel-title">An agent that holds your API key holds your full authority. Every call, forever.</h2>
+  <p class="sc-answer">SafeClaw ends that. Agents only ever see phantom credentials; a local proxy injects the real secret at the network edge, and sensitive calls wait for a passkey tap. Each tap is a single-use grant bound to one exact operation, so even a fully compromised agent cannot spend your authority.</p>
+  <p class="sc-ship mono">co-founded 2026 &middot; production stack built solo in three months &middot; open source</p>
+  <p class="sc-links">
+    <a href="https://safeclaw.pro">safeclaw.pro</a>
+    <a href="https://github.com/SafeClaw-OSS/safeclaw">github</a>
+    <a href="https://github.com/xhyumiracle/sudp">the paper behind it</a>
+  </p>
+</section>
+
+<section class="panel" id="archive" hidden aria-modal="true" role="dialog" aria-label="fainter stars" tabindex="-1">
+  <div class="panel-head"><p class="mono ch-meta">fainter stars</p><button class="panel-x mono" data-close>&times;</button></div>
+  <ul class="faint-list">
+    <li><span class="faint-dead">notes on auditing blockchains</span><span class="faint-note">being restored from a 2021 manuscript</span></li>
+    <li><span class="faint-dead">M1r4c13</span><span class="faint-note">51 study notes from 2017 and 2018, being restored</span></li>
+  </ul>
+  <p class="coda"><span class="cn-inline">这世界或许并不完美，但也因此令人着迷。</span></p>
+</section>
 
 <!-- command palette -->
 <button class="palette-fab mono" id="paletteFab" aria-label="open command palette">&rsaquo;_</button>
