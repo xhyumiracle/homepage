@@ -9,7 +9,7 @@
 <meta property="og:title" content="Xiaohang Yu · xhyumiracle">
 <meta property="og:description" content="Imperfect, therefore fascinating.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/main.css?v=4">
+<link rel="stylesheet" href="css/main.css?v=5">
 </head>
 <body>
 
@@ -258,17 +258,25 @@
  <span class="shutdown-line" id="shutdownLine"></span>
 </div>
 
-<!-- the shell: docked prompt bar, always visible. output pane expands up from it. -->
-<div class="shell-dock" id="shellDock">
+<!-- the shell: a quiet corner chip that opens a compact terminal window. never docked,
+ never mid-screen. fixed, right/bottom offsets only. -->
+<button class="shell-chip mono" id="shellChip" aria-label="open shell" aria-expanded="false">
+ <span class="shell-chip-glyph">&gt;_</span>
+</button>
+<div class="shell-win" id="shellWin" hidden>
+ <div class="shell-win-bar">
+  <span class="mono shell-win-title">xhyu@sky</span>
+  <button class="shell-win-close" id="shellClose" aria-label="close shell">&times;</button>
+ </div>
  <div class="shell-pane" id="shellPane" aria-live="polite"></div>
  <div class="shell-row" id="shellRow">
   <span class="shell-ps mono">xhyu@sky:~$</span>
-  <span class="shell-typed mono" id="shellTyped"></span><span class="shell-cursor" id="shellCursor" aria-hidden="true"></span><span class="shell-ghost mono" id="shellGhost" aria-hidden="true"></span>
+  <span class="shell-typed mono" id="shellTyped"></span><span class="shell-cursor" id="shellCursor" aria-hidden="true"></span>
   <input class="shell-input" id="shellInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="shell input">
  </div>
 </div>
 
-<script src="js/starfield.js?v=4"></script>
-<script src="js/main.js?v=4"></script>
+<script src="js/starfield.js?v=5"></script>
+<script src="js/main.js?v=5"></script>
 </body>
 </html>

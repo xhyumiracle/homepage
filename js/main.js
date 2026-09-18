@@ -1,4 +1,5 @@
-/* v4: module content, hash sync, legend, the docked xterm-backed shell. sky lives in starfield.js. */
+/* v5: module content, hash sync, legend, the corner-window xterm-backed shell (with the
+ shell-open focus fix). sky lives in starfield.js. */
 (function () {
  var shotM = /[?&]shot(?:=([a-z0-9]+))?/.exec(location.search);
  var reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -13,6 +14,7 @@
  var mods = {};
  MODULES.forEach(function (id) { mods[id] = document.getElementById('mod-' + id); });
  var visibleId = null;
+ var shellOpen = false; /* while true, module content never takes focus (see showModule / sky:settle below) */
 
  /* in-memory FS mirroring the site, scraped from the DOM so content lives once */
  var FS = { type: 'dir', children: {} };
@@ -75,7 +77,11 @@
   el.hidden = false;
   void el.offsetHeight;
   el.classList.add('show');
-  el.focus({ preventScroll: true });
+  /* focus fix: while the shell window is open, module content NEVER takes focus (a shell-
+   initiated `cd` must not have its fly-in settle steal focus mid-sentence, ~400ms later, out
+   from under continuous typing). the shell input gets re-asserted instead, in the sky:settle
+   handler below. mouse-initiated nav keeps today's behavior when the shell is closed. */
+  if (!shellOpen) el.focus({ preventScroll: true });
   visibleId = id;
  }
  function hideModule(id) {
@@ -135,23 +141,45 @@
   document.getElementById('chevR').addEventListener('click', function () { dispatchEvent(new CustomEvent('sky:swipe', { detail: 1 })); });
  }
 
- /* shell: docked prompt bar + output pane. xterm.js, self-hosted, lazy-loaded on
-  first focus; falls back to a hand-rolled plain-DOM pane if it fails to load. */
- var shellDock = document.getElementById('shellDock');
+ /* shell: a quiet bottom-right chip that opens a compact corner terminal window. xterm.js,
+  self-hosted, lazy-loaded on first open; falls back to a hand-rolled plain-DOM pane if it
+  fails to load. no first-visit promo of any kind: the chip just sits there quietly. */
+ var shellChip = document.getElementById('shellChip');
+ var shellWin = document.getElementById('shellWin');
+ var shellClose = document.getElementById('shellClose');
+ var shellRow = document.getElementById('shellRow');
  var shellPane = document.getElementById('shellPane');
  var shellInput = document.getElementById('shellInput');
  var shellTyped = document.getElementById('shellTyped');
- var shellGhost = document.getElementById('shellGhost');
  var skyCanvas = document.getElementById('sky');
 
  var cwd = [];
  var shellHistory = [], histIdx = 0;
- var hasOutput = false;
  var xtermState = 'none'; /* -> loading -> ready|failed */
  var term = null, pending = [];
 
- function expandPane() { shellDock.classList.add('expanded'); }
- function collapsePane() { shellDock.classList.remove('expanded'); shellInput.blur(); }
+ /* open/close the whole window (not a pane-height animation anymore: the window is a fixed
+  small box, so there's nothing to expand). shellOpen (declared above, near module state)
+  gates the focus fix: while it's true, showModule() never calls .focus(). */
+ function openShell() {
+  shellOpen = true;
+  shellChip.classList.add('is-hidden');
+  shellWin.hidden = false;
+  void shellWin.offsetHeight;
+  shellWin.classList.add('show');
+  shellChip.setAttribute('aria-expanded', 'true');
+  loadXterm();
+  shellInput.focus();
+ }
+ function closeShell() {
+  shellOpen = false;
+  shellWin.classList.remove('show');
+  if (still) shellWin.hidden = true;
+  else setTimeout(function () { if (!shellWin.classList.contains('show')) shellWin.hidden = true; }, FADE_OUT_MS);
+  shellChip.classList.remove('is-hidden');
+  shellChip.setAttribute('aria-expanded', 'false');
+  shellInput.blur();
+ }
 
  function ansiWrap(text, cls) {
   if (cls === 'cmdline') return '\x1b[38;2;233;228;214m' + text + '\x1b[0m';
@@ -164,7 +192,6 @@
   shellPane.appendChild(d);
  }
  function printLine(text, cls) {
-  hasOutput = true;
   if (xtermState === 'ready') { term.writeln(ansiWrap(text, cls)); return; }
   if (xtermState === 'loading') { pending.push([text, cls]); return; }
   appendPlain(text, cls);
@@ -191,7 +218,7 @@
     var rowsN = Math.max(10, Math.floor((innerHeight * 0.44) / 19));
     term = new window.Terminal({
      rows: rowsN, cols: chW, fontSize: 13, fontFamily: 'PlexMono, monospace',
-     cursorBlink: true, disableStdin: true, convertEol: true, scrollback: 400,
+     cursorBlink: false, disableStdin: true, convertEol: true, scrollback: 400, /* output-only pane; the real, focus-gated cursor is the prompt row's own glyph */
      theme: { background: 'rgba(0,0,0,0)', foreground: '#e9e4d6', cursor: '#d8c08a', selectionBackground: 'rgba(216,192,138,.25)' },
     });
     term.open(mount);
@@ -222,7 +249,7 @@
   'sleep <n>  dim the sky for n seconds, max 10',
   'shutdown  ...',
   'clear  clear this output',
-  'exit  collapse this pane',
+  'exit  close this window',
  ];
  var KNOWN = ['help', '?', 'ls', 'cd', 'pwd', 'cat', 'grep', 'echo', 'skill', 'skills', 'whoami', 'uptime', 'sudo', 'reboot', 'sleep', 'shutdown', 'clear', 'exit', 'history', 'date'];
 
@@ -304,7 +331,7 @@
   setTimeout(function () { skyCanvas.classList.remove('dim'); }, n * 1000);
  }
  function shutdownCmd() {
-  collapsePane();
+  closeShell();
   var veil = document.getElementById('shutdownVeil');
   var line = document.getElementById('shutdownLine');
   line.textContent = 'not for this sky.';
@@ -319,7 +346,7 @@
    line.classList.remove('show');
   }, 4000);
  }
- function clearCmd() { hasOutput = false; if (term) term.clear(); else shellPane.innerHTML = ''; }
+ function clearCmd() { if (term) term.clear(); else shellPane.innerHTML = ''; }
 
  function runCommand(raw) {
   var line = raw.trim();
@@ -346,7 +373,7 @@
    case 'sleep': sleepCmd(arg); break;
    case 'shutdown': shutdownCmd(); break;
    case 'clear': clearCmd(); break;
-   case 'exit': collapsePane(); break;
+   case 'exit': closeShell(); break;
   }
  }
 
@@ -382,25 +409,27 @@
  }
 
  function mirrorInput() { shellTyped.textContent = shellInput.value; }
- function abortGhost() { shellGhost.classList.remove('show'); shellGhost.textContent = ''; }
 
  function wireShell() {
-  shellInput.addEventListener('focus', function () { loadXterm(); expandPane(); abortGhost(); });
-  shellInput.addEventListener('blur', function () { if (!hasOutput) collapsePane(); });
+  shellChip.addEventListener('click', function () { openShell(); });
+  shellClose.addEventListener('click', function () { closeShell(); });
+  /* cursor blinks ONLY while the input is focused; the chip's own `>_` glyph is always static */
+  shellInput.addEventListener('focus', function () { shellRow.classList.add('focused'); });
+  shellInput.addEventListener('blur', function () { shellRow.classList.remove('focused'); });
   shellInput.addEventListener('input', mirrorInput);
   shellPane.addEventListener('click', function () { shellInput.focus(); });
   shellInput.addEventListener('keydown', function (e) {
-   if (e.key === 'Escape') { collapsePane(); return; }
+   if (e.key === 'Escape') { closeShell(); return; }
    if (e.key === 'Enter') {
     e.preventDefault();
     var v = shellInput.value;
     if (v.trim()) shellHistory.push(v);
     histIdx = shellHistory.length;
-    expandPane();
     printLine('xhyu@sky:~$ ' + v, 'cmdline');
     runCommand(v);
     shellInput.value = ''; mirrorInput();
-    shellInput.focus(); /* v3 bug: focus was lost after Enter. always refocus. */
+    shellInput.focus(); /* v3 bug: focus was lost after Enter. always refocus. (the fly-in focus
+     steal, ~400ms later, is handled separately; see showModule() and sky:settle below.) */
     return;
    }
    if (e.key === 'ArrowUp') { e.preventDefault(); if (histIdx > 0) { histIdx--; shellInput.value = shellHistory[histIdx] || ''; mirrorInput(); } return; }
@@ -414,32 +443,14 @@
   });
  }
 
- var GHOST_TEXT = 'try: ls', GHOST_KEY = 'xhyu-shell-seen';
- function maybeGhost() {
-  try { if (localStorage.getItem(GHOST_KEY)) return; localStorage.setItem(GHOST_KEY, '1'); } catch (e) { return; }
-  if (still) return;
-  setTimeout(function () {
-   if (document.activeElement === shellInput || shellInput.value) return;
-   var i = 0;
-   var iv = setInterval(function () {
-    if (document.activeElement === shellInput || shellInput.value) { clearInterval(iv); abortGhost(); return; }
-    shellGhost.textContent = GHOST_TEXT.slice(0, ++i);
-    shellGhost.classList.add('show');
-    if (i >= GHOST_TEXT.length) {
-     clearInterval(iv);
-     setTimeout(function () { abortGhost(); }, 1200);
-    }
-   }, 80);
-  }, 3000);
- }
-
- /* global keydown: '/' focuses the shell, escape collapses/zooms out, arrows cycle */
+ /* global keydown: '/' opens the shell, escape closes it (or zooms out if not open), arrows
+  cycle modules while zoomed */
  function globalKeydown(e) {
   var typing = e.target && e.target.closest && e.target.closest('input, textarea');
   if (typing) return; /* the shell input owns its own keydown handler */
-  if (e.key === '/') { e.preventDefault(); shellInput.focus(); return; }
+  if (e.key === '/') { e.preventDefault(); openShell(); return; }
   if (e.key === 'Escape') {
-   if (shellDock.classList.contains('expanded')) { collapsePane(); return; }
+   if (shellOpen) { closeShell(); return; }
    if (Sky.isZoomed()) dismiss();
    return;
   }
@@ -456,7 +467,6 @@
   wireLegend();
   wireChrome();
   wireShell();
-  maybeGhost();
 
   addEventListener('sky:select', function (e) { request(e.detail); });
   addEventListener('sky:swipe', function (e) {
@@ -470,19 +480,24 @@
    updateLegendCurrent(id);
    if (visibleId) hideModule(visibleId);
   });
-  addEventListener('sky:settle', function (e) { if (e.detail.id) showModule(e.detail.id); });
+  /* focus fix: showModule() itself already skips focusing while the shell is open (see its
+   definition above); here we additionally re-assert focus onto the shell input once the fly
+   settles, so a shell-initiated `cd` can never lose the user's place mid-sentence. */
+  addEventListener('sky:settle', function (e) {
+   if (e.detail.id) showModule(e.detail.id);
+   if (shellOpen) shellInput.focus();
+  });
   addEventListener('hashchange', sync);
   addEventListener('popstate', sync);
   document.addEventListener('keydown', globalKeydown);
 
   if (shotM && shotM[1] === 'shell') {
-   loadXterm();
+   openShell();
    var tries = 0;
    var iv = setInterval(function () {
     tries++;
     if (xtermState === 'ready' || xtermState === 'failed' || tries > 40) {
      clearInterval(iv);
-     expandPane();
      printLine('xhyu@sky:~$ ls', 'cmdline');
      lsCmd('');
     }
