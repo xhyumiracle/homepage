@@ -42,7 +42,7 @@
  var shot = !!shotM;
  var still = reduced || shot;
 
- var MODULES = ['hacker', 'builder', 'scholar', 'archive'];
+ var MODULES = ['researcher', 'builder', 'hacker', 'archive'];
 
  var W = 0, H = 0, dpr = 1;
  var pole = { x: 0, y: 0 }; /* world center: polaris, the home anchor the gaze camera rests at */
@@ -75,7 +75,7 @@
   { id: 'builder', name: 'builder', sub: 'SafeClaw · standards', scaleF: 0.15,
    pts: [[0,.10],[.12,.35],[.35,.60],[.50,.68],[.72,.55],[.82,.18],[.95,.05]],
    lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0]], specialIdx: 6 },
-  { id: 'scholar', name: 'scholar', sub: 'ICL PhD · 3 directions', scaleF: 0.15,
+  { id: 'researcher', name: 'researcher', sub: 'ICL PhD · 3 directions', scaleF: 0.15,
    pts: [[.15,.10],[.30,.02],[.32,.25],[.55,.35],[.50,.62],[.72,.60]],
    lines: [[0,1],[0,2],[2,3],[3,5],[5,4],[4,2]], brightIdx: 0 },
   { id: 'archive', name: 'fainter stars', sub: 'archive', scaleF: 0.14, dim: true,
@@ -90,12 +90,12 @@
   the amplitude is now measured against the 1.7x WORLD half-extent instead of the viewport
   half-extent, so the same "clear of chrome, non-overlapping" margin math that used to bound
   the rest pose to the viewport now spreads the shape out into the extra world margin instead:
-  hacker upper-left, builder right, scholar lower-right, archive mid-left, same as before, just
+  hacker upper-left, builder right, researcher lower-right, archive mid-left, same as before, just
   further out. no per-frame recompute: c.wx/c.wy are written once in layout() and read forever. */
  var ORBIT = {
   hacker:  { ang: d2r(205), fracA: .30, fracB: .42 },
   builder: { ang: d2r(5),   fracA: .46, fracB: .66 },
-  scholar: { ang: d2r(60),  fracA: .46, fracB: .56 },
+  researcher: { ang: d2r(60),  fracA: .46, fracB: .56 },
   archive: { ang: d2r(175), fracA: .46, fracB: .48 },
  };
 

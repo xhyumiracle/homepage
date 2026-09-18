@@ -6,10 +6,11 @@
  var still = !!shotM || reducedMotion;
  if (still) document.documentElement.classList.add('still');
 
- var MODULES = ['hacker', 'builder', 'scholar', 'archive'];
- var ALIASES = { hacker: 'hacker', builder: 'builder', scholar: 'scholar', archive: 'archive', safeclaw: 'builder' };
- var LEGACY_HASH = { ch1: 'hacker', ch2: 'hacker', ch3: 'builder', ch4: 'scholar', safeclaw: 'builder' };
- var QLINE = (document.getElementById('avatarQ') || {}).title || '';
+ var MODULES = ['researcher', 'builder', 'hacker', 'archive'];
+ var ALIASES = { hacker: 'hacker', builder: 'builder', researcher: 'researcher', archive: 'archive', safeclaw: 'builder' };
+ /* scholar -> researcher rename: legacy #scholar (and the old ch4 alias) still redirect here */
+ var LEGACY_HASH = { ch1: 'hacker', ch2: 'hacker', ch3: 'builder', ch4: 'researcher', safeclaw: 'builder', scholar: 'researcher' };
+ var QLINE = (document.getElementById('avatarPopoverHalf') || {}).textContent || '';
 
  var mods = {};
  MODULES.forEach(function (id) { mods[id] = document.getElementById('mod-' + id); });
@@ -139,6 +140,37 @@
   document.getElementById('skyBack').addEventListener('click', dismiss);
   document.getElementById('chevL').addEventListener('click', function () { dispatchEvent(new CustomEvent('sky:swipe', { detail: -1 })); });
   document.getElementById('chevR').addEventListener('click', function () { dispatchEvent(new CustomEvent('sky:swipe', { detail: 1 })); });
+ }
+
+ /* avatar popover: click the ? to toggle a small card (the research line + the half-sentence
+  that used to live in the ?'s native title tooltip, now removed). dismiss on: clicking ? again
+  (handled by the toggle itself), clicking outside (document-level listener below), or ESC (see
+  globalKeydown). */
+ var avatarQ = document.getElementById('avatarQ');
+ var avatarPopover = document.getElementById('avatarPopover');
+ var popoverOpen = false;
+ function openPopover() {
+  popoverOpen = true;
+  avatarPopover.hidden = false;
+  void avatarPopover.offsetHeight;
+  avatarPopover.classList.add('show');
+  avatarQ.setAttribute('aria-expanded', 'true');
+ }
+ function closePopover() {
+  popoverOpen = false;
+  avatarPopover.classList.remove('show');
+  if (still) avatarPopover.hidden = true;
+  else setTimeout(function () { if (!avatarPopover.classList.contains('show')) avatarPopover.hidden = true; }, FADE_OUT_MS);
+  avatarQ.setAttribute('aria-expanded', 'false');
+ }
+ function togglePopover() { if (popoverOpen) closePopover(); else openPopover(); }
+ function wirePopover() {
+  avatarQ.addEventListener('click', function () { togglePopover(); });
+  document.addEventListener('click', function (e) {
+   if (!popoverOpen) return;
+   if (e.target === avatarQ || avatarPopover.contains(e.target)) return;
+   closePopover();
+  });
  }
 
  /* shell: a quiet bottom-right chip that opens a compact corner terminal window. xterm.js,
@@ -473,13 +505,14 @@
   });
  }
 
- /* global keydown: '/' opens the shell, escape closes it (or zooms out if not open), arrows
-  cycle modules while zoomed */
+ /* global keydown: '/' opens the shell, escape closes the popover, then the shell, then zooms
+  out (in that priority order) if none of those is open, arrows cycle modules while zoomed */
  function globalKeydown(e) {
   var typing = e.target && e.target.closest && e.target.closest('input, textarea');
   if (typing) return; /* the shell input owns its own keydown handler */
   if (e.key === '/') { e.preventDefault(); openShell(); return; }
   if (e.key === 'Escape') {
+   if (popoverOpen) { closePopover(); return; }
    if (shellOpen) { closeShell(); return; }
    if (Sky.isZoomed()) dismiss();
    return;
@@ -496,6 +529,7 @@
   buildFS();
   wireLegend();
   wireChrome();
+  wirePopover();
   wireShell();
 
   addEventListener('sky:select', function (e) { request(e.detail); });

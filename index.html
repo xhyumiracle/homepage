@@ -9,7 +9,7 @@
 <meta property="og:title" content="Xiaohang Yu · xhyumiracle">
 <meta property="og:description" content="Imperfect, therefore fascinating.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/main.css?v=7">
+<link rel="stylesheet" href="css/main.css?v=8">
 </head>
 <body>
 
@@ -25,33 +25,36 @@
    <path d="M40 74 L38 128" class="fg-stroke fg-fade"/>
    <path d="M80 74 L82 128" class="fg-stroke fg-fade"/>
   </svg>
-  <span class="avatar-q" id="avatarQ" tabindex="0" title="most of what moves the world never survives it. what does is half a sentence.">?</span>
+  <button type="button" class="avatar-q" id="avatarQ" aria-haspopup="true" aria-expanded="false" aria-controls="avatarPopover" aria-label="more">?</button>
+  <div class="avatar-popover" id="avatarPopover" role="dialog" aria-label="more about xhyumiracle" hidden>
+   <p class="mono avatar-popover-research">research: agent security &middot; agentic forensics &middot; reinforcement learning</p>
+   <p class="avatar-popover-half" id="avatarPopoverHalf">most of what moves the world never survives it. what does is half a sentence.</p>
+  </div>
  </div>
  <p class="mono eyebrow">xhyumiracle</p>
  <h1 class="name">Xiaohang Yu <span class="cn-name">于晓航</span></h1>
- <p class="slogan-cn">这世界或许并不完美，<br>但也因此令人着迷</p>
+ <p class="slogan-cn">世界并不完美，但令人着迷。</p>
  <p class="slogan-en">Imperfect, therefore fascinating.</p>
- <p class="mono role-line">hacker &middot; builder &middot; scholar</p>
- <p class="mono fields">research: agent security &middot; agentic forensics &middot; reinforcement learning</p>
+ <p class="mono role-line">researcher &middot; builder &middot; hacker</p>
 </header>
 
 <!-- right: sky chart legend -->
 <nav class="legend" aria-label="index of this sky">
  <p class="mono legend-title">index of this sky</p>
- <button class="legend-row" data-module="hacker">
+ <button class="legend-row" data-module="researcher">
   <span class="lr-key mono">01</span>
-  <span class="lr-body"><span class="lr-name">hacker</span>
-  <span class="lr-tags mono">blockchain security</span></span>
+  <span class="lr-body"><span class="lr-name">researcher</span>
+  <span class="lr-tags mono">ICL PhD &middot; 3 directions</span></span>
  </button>
  <button class="legend-row sc" data-module="builder">
   <span class="lr-key mono">02</span>
   <span class="lr-body"><span class="lr-name sc-tint">builder</span>
   <span class="lr-tags mono">SafeClaw &middot; standards</span></span>
  </button>
- <button class="legend-row" data-module="scholar">
+ <button class="legend-row" data-module="hacker">
   <span class="lr-key mono">03</span>
-  <span class="lr-body"><span class="lr-name">scholar</span>
-  <span class="lr-tags mono">ICL PhD &middot; 3 directions</span></span>
+  <span class="lr-body"><span class="lr-name">hacker</span>
+  <span class="lr-tags mono">blockchain security</span></span>
  </button>
  <button class="legend-row dim" data-module="archive">
   <span class="lr-key mono">&middot;&middot;</span>
@@ -171,12 +174,12 @@
   </section>
  </article>
 
- <article class="mod" id="mod-scholar" data-module="scholar" hidden tabindex="-1">
-  <h2 class="panel-title">Scholar: ICL PhD, and three research directions</h2>
+ <article class="mod" id="mod-researcher" data-module="researcher" hidden tabindex="-1">
+  <h2 class="panel-title">Researcher: ICL PhD, and three research directions</h2>
   <p class="mono research-line">research: agent security &middot; agentic forensics &middot; reinforcement learning</p>
 
-  <section class="subsec" id="sub-scholar-education" data-slug="education">
-   <p class="mono sub-slug">~/sky/scholar/education</p>
+  <section class="subsec" id="sub-researcher-education" data-slug="education">
+   <p class="mono sub-slug">~/sky/researcher/education</p>
    <ul class="evidence">
     <li>Ph.D. Computer Science, Imperial College London, UK, 2021.10 to 2027 (expected). Advisor: William Knottenbelt, also a LOCARD co-author.</li>
     <li>M.S. Security Informatics, Johns Hopkins University, US, 2016.08 to 2018.01. Fully funded by China Scholarship Council (CSC) national scholarship.</li>
@@ -185,8 +188,8 @@
    </ul>
   </section>
 
-  <section class="subsec" id="sub-scholar-directions" data-slug="directions">
-   <p class="mono sub-slug">~/sky/scholar/directions</p>
+  <section class="subsec" id="sub-researcher-directions" data-slug="directions">
+   <p class="mono sub-slug">~/sky/researcher/directions</p>
    <ul class="evidence">
     <li>Agent security: cryptographic protocols for agent credential isolation and secret-use delegation (SUDP, first author).</li>
     <li>Agentic forensics: agentic frameworks for blockchain forensics (LOCARD, PhD work, IEEE ICBC 2026).</li>
@@ -194,8 +197,8 @@
    </ul>
   </section>
 
-  <section class="subsec" id="sub-scholar-publications" data-slug="publications">
-   <p class="mono sub-slug">~/sky/scholar/publications</p>
+  <section class="subsec" id="sub-researcher-publications" data-slug="publications">
+   <p class="mono sub-slug">~/sky/researcher/publications</p>
    <ul class="pubs">
     <li class="pub">
      <a class="pub-title" href="https://arxiv.org/abs/2604.24920">SUDP: Secret-Use Delegation Protocol for Agentic Systems</a>
@@ -226,8 +229,8 @@
    </ul>
   </section>
 
-  <section class="subsec" id="sub-scholar-talks" data-slug="talks">
-   <p class="mono sub-slug">~/sky/scholar/talks</p>
+  <section class="subsec" id="sub-researcher-talks" data-slug="talks">
+   <p class="mono sub-slug">~/sky/researcher/talks</p>
    <ul class="evidence">
     <li>IEEE ICBC 2026 (upcoming) &middot; LOCARD: An Agentic Framework for Blockchain Forensics &middot; Brisbane, AU</li>
     <li>DEFCON 27 Village &middot; EVM Opcode JOP &middot; Las Vegas &middot; 2019</li>
@@ -248,7 +251,7 @@
    <li data-slug="notes"><span class="faint-dead">notes on auditing blockchains</span><span class="faint-note">being restored from a 2021 manuscript</span></li>
    <li data-slug="m1r4c13"><span class="faint-dead">M1r4c13</span><span class="faint-note">51 study notes from 2017 and 2018, being restored</span></li>
   </ul>
-  <p class="coda"><span class="cn-inline">这世界或许并不完美，但也因此令人着迷。</span></p>
+  <p class="coda"><span class="cn-inline">世界并不完美，但令人着迷。</span></p>
  </article>
 
 </div>
@@ -276,7 +279,7 @@
  </div>
 </div>
 
-<script src="js/starfield.js?v=7"></script>
-<script src="js/main.js?v=7"></script>
+<script src="js/starfield.js?v=8"></script>
+<script src="js/main.js?v=8"></script>
 </body>
 </html>
