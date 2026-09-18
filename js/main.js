@@ -191,11 +191,23 @@
   d.textContent = text;
   shellPane.appendChild(d);
  }
+ /* auto-scroll: every command's output should end with the last line (and the prompt) visible,
+  in both the xterm path and the plain-DOM fallback, even when the output arrives asynchronously
+  (queued in `pending` while xterm is still lazy-loading and flushed once it's ready). the one
+  exception is a user who has manually scrolled up mid-output to re-read something: shellUserScrolled
+  latches true when a scroll event leaves either pane off the bottom, and only a *new* command
+  (the Enter handler, which is the one place that resets it) is allowed to clear it and force the
+  view back down. */
+ var shellUserScrolled = false;
+ function scrollShellToBottom() {
+  if (xtermState === 'ready' && term) term.scrollToBottom(); /* xterm's own internal scrollback viewport */
+  shellPane.scrollTop = shellPane.scrollHeight; /* the outer pane can also scroll (xterm's rendered rows can exceed the pane's own box); harmless no-op when it fits */
+ }
  function printLine(text, cls) {
-  if (xtermState === 'ready') { term.writeln(ansiWrap(text, cls)); return; }
+  if (xtermState === 'ready') { term.writeln(ansiWrap(text, cls)); if (!shellUserScrolled) scrollShellToBottom(); return; }
   if (xtermState === 'loading') { pending.push([text, cls]); return; }
   appendPlain(text, cls);
-  shellPane.scrollTop = shellPane.scrollHeight;
+  if (!shellUserScrolled) scrollShellToBottom();
  }
  function printLines(arr, cls) { arr.forEach(function (l) { printLine(l, cls); }); }
 
@@ -222,6 +234,10 @@
      theme: { background: 'rgba(0,0,0,0)', foreground: '#e9e4d6', cursor: '#d8c08a', selectionBackground: 'rgba(216,192,138,.25)' },
     });
     term.open(mount);
+    term.onScroll(function () {
+     var buf = term.buffer.active;
+     shellUserScrolled = buf.viewportY < buf.baseY;
+    });
     xtermState = 'ready';
     flushPending();
    } catch (err) { xtermFallback(); }
@@ -418,6 +434,13 @@
   shellInput.addEventListener('blur', function () { shellRow.classList.remove('focused'); });
   shellInput.addEventListener('input', mirrorInput);
   shellPane.addEventListener('click', function () { shellInput.focus(); });
+  /* plain-DOM fallback path's own scroll container (the xterm path is wired separately, inside
+   loadXterm(), via term.onScroll): latch shellUserScrolled whenever the pane isn't at the
+   bottom. our own programmatic scrollShellToBottom() calls always land exactly at the bottom,
+   so they never falsely set this. */
+  shellPane.addEventListener('scroll', function () {
+   shellUserScrolled = shellPane.scrollTop + shellPane.clientHeight < shellPane.scrollHeight - 4;
+  });
   shellInput.addEventListener('keydown', function (e) {
    if (e.key === 'Escape') { closeShell(); return; }
    if (e.key === 'Enter') {
@@ -425,6 +448,7 @@
     var v = shellInput.value;
     if (v.trim()) shellHistory.push(v);
     histIdx = shellHistory.length;
+    shellUserScrolled = false; /* a new command always follows its own output down */
     printLine('xhyu@sky:~$ ' + v, 'cmdline');
     runCommand(v);
     shellInput.value = ''; mirrorInput();

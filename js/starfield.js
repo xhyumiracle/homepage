@@ -1,13 +1,29 @@
-/* v5 sky: the gaze model. no rotation axis, no fisheye. the world is a plane ~1.7x the
+/* v5b sky: the gaze model. no rotation axis, no fisheye. the world is a plane ~1.7x the
  viewport in each dimension, centered on polaris; every star and constellation gets a
  STATIC world position (the old theta-orbit rest poses, spread further into the extra
  world margin so panning toward an edge reveals content). the camera pans opposite the
  pointer through a damped spring with rubber-band edges at the world margin, "standing
- under the sky, looking around." 3-layer dust gives cheap depth parallax. attention (the
- constellation nearest the pointer) is light, never size. idle drifts on a slow Lissajous
- wander; touch drags the camera directly with momentum. realism pass: power-law star
- brightness with pre-rendered halo sprites for the brightest, a faint milky-way wash, and
- twinkle that's stronger in the near layer. module/shell logic lives in main.js. */
+ under the sky, looking around" — but only barely: pan is ambient parallax, not navigation
+ (~4-5% of viewport width at full pointer travel; see the K comment down with the gaze
+ constants), since the home pose already shows every constellation.
+
+ dust is 3 depth layers, density-biased into a band so it reads as a milky-way star-river:
+ far and mid, plus ~98% of near (everything but its brightest sliver), are pre-rendered once
+ per layout() onto offscreen world-sized canvases at reduced resolution and just drawImage'd
+ each frame — cheap, static parallax, no per-star cost. only near's brightest ~2% (the ones
+ with halo sprites) stay live-drawn for real per-star twinkle; see the dust-section comment
+ for why (a real, profiled frame-budget regression this rewrite hit and fixed). a pan-factor
+ stack (GAZE_PF/MID_PF/FAR_PF) further dampens how much of the camera's already-small raw
+ excursion each depth layer actually shows.
+
+ attention (the constellation nearest the pointer) is light, never size. idle drifts on a
+ slow Lissajous wander; touch drags the camera directly (same gentle range) with momentum. a
+ click on polaris toggles a frozen mode (camera eases home and holds, wander suspended,
+ subtle ring on polaris) unless a module is open, in which case it zooms out first as before.
+ the sky background carries a pre-rendered atmosphere: a faint horizon lift, a gentle
+ vignette, and a mottled, band-biased milky-way wash so the star river reads as cloud
+ structure, not a flat gradient. module/shell logic (including the corner shell's own
+ auto-scroll) lives in main.js. */
 (function () {
  var canvas = document.getElementById('sky');
  var ctx = canvas.getContext('2d');
@@ -22,13 +38,14 @@
  var W = 0, H = 0, dpr = 1;
  var pole = { x: 0, y: 0 }; /* world center: polaris, the home anchor the gaze camera rests at */
  var WORLD = { halfW: 0, halfH: 0, marginX: 0, marginY: 0 }; /* 1.7x-viewport world bounds */
- var dustFar = [], dustMid = [], dustNear = [];
+ var dustNearBright = []; /* far/mid/near-bulk are baked into offscreen canvases at layout() time; only the brightest sliver of near is drawn live (see the dust section below) */
  var meteors = [], meteorNext = 0;
+ var satellite = null, satelliteNext = 0;
  var echo = null;
  var mouse = { x: -1, y: -1 };
  var litId = null;
 
- var zoomed = false, activeId = null;
+ var zoomed = false, activeId = null, frozen = false;
  var CAM = { scale: 1, cx: 0, cy: 0 };
  var camAnim = null;
 
@@ -75,8 +92,19 @@
 
  var pulseNext = 0, lastPulseId = null;
 
- function screenToBase(x, y) { return { x: (x - W / 2) / CAM.scale + CAM.cx, y: (y - H / 2) / CAM.scale + CAM.cy }; }
- function baseToScreen(x, y) { return { x: (x - CAM.cx) * CAM.scale + W / 2, y: (y - CAM.cy) * CAM.scale + H / 2 }; }
+ /* pan-factor stack: how much of the camera's raw excursion from home each depth plane shows.
+  K (below, with the gaze constants) controls how far the camera itself travels per pointer
+  pixel; these factors independently damp what each layer actually displays, so a single
+  pointer swing reads as real depth rather than a flat pan. only the near/constellation plane
+  snaps to a factor of 1 while a module is zoomed (precise fly-to navigation there, no gaze
+  damping); far/mid dust keep their parallax always, zoomed or not. */
+ var GAZE_PF = 0.9, MID_PF = 0.7, FAR_PF = 0.5;
+ function gazeCam() {
+  if (zoomed) return CAM;
+  return { scale: CAM.scale, cx: pole.x + (CAM.cx - pole.x) * GAZE_PF, cy: pole.y + (CAM.cy - pole.y) * GAZE_PF };
+ }
+ function screenToBase(x, y) { var c = gazeCam(); return { x: (x - W / 2) / c.scale + c.cx, y: (y - H / 2) / c.scale + c.cy }; }
+ function baseToScreen(x, y) { var c = gazeCam(); return { x: (x - c.cx) * c.scale + W / 2, y: (y - c.cy) * c.scale + H / 2 }; }
 
  /* upright local star layout for a constellation: its normalized pts scaled and re-centered
   on their own bounding-box center. computed once per layout() call. never rotated, never
@@ -92,23 +120,37 @@
   return { localPts: pts, maxR: maxR };
  }
 
- /* --- dust: 3 depth layers, generated once per layout() over the full 1.7x world rect. far
-  pans at 55% of camera travel, mid at 75%, near (this layer) at 100%, same rate as the
-  constellations, since it sits in the same picture plane as them. realism: power-law
-  brightness (many faint, few bright) drives both size and alpha; the near layer's brightest
-  ~2% get a halo-sprite flag; the near layer also twinkles most, far layer least. */
- var MW_ANGLE = -0.58; /* fixed diagonal used both for the density bias below and the milky-way wash, so they align */
+ /* --- dust + atmosphere ---
+  MW_ANGLE is the one fixed diagonal shared by three things so they all line up: the star-
+  density band bias below, the nebulosity blobs, and the milky-way wash gradient.
+
+  root-cause note (the "no dust on real browsers" regression): genLayer() used to read the
+  shared `pole`/`WORLD` closure vars directly. layout() only writes those at its very end (the
+  "commit" step, by design: a half-built layout should never clobber a good one), but it used
+  to call genLayer() *before* that commit — so every star was generated against pole={x:0,y:0}
+  and WORLD={halfW:0,halfH:0}, i.e. `pole.x + rand*WORLD.halfW` collapsed to exactly (0,0) for
+  every single star, every layout(). the whole dust field sat stacked in one point just off the
+  top-left corner, permanently, on every load and resize, independent of dpr — dpr only changed
+  how forgiving downscaled preview screenshots were about not noticing. fixed by threading the
+  freshly-computed newPole/newWorld into genLayer()/prerenderLayer() explicitly instead of
+  reading the stale shared globals. */
+ var MW_ANGLE = -0.58;
  function powerBrightness(pw) { return Math.pow(Math.random(), pw); }
- function genLayer(count, opt) {
+ function bandFrac(px, py, cx, cy, bandWidth) {
+  var perp = (px - cx) * -Math.sin(MW_ANGLE) + (py - cy) * Math.cos(MW_ANGLE);
+  return Math.exp(-(perp * perp) / (2 * bandWidth * bandWidth));
+ }
+ function genLayer(count, opt, poleRef, worldRef) {
   var out = [];
   var guard = 0, need = count;
-  while (out.length < need && guard < need * 6) {
+  var floor = opt.floor != null ? opt.floor : 0.35;
+  var bandWidth = opt.bandWidth || worldRef.halfH * 0.35;
+  while (out.length < need && guard < need * 8) {
    guard++;
-   var x = pole.x + (Math.random() * 2 - 1) * WORLD.halfW;
-   var y = pole.y + (Math.random() * 2 - 1) * WORLD.halfH;
-   var a0 = Math.atan2(y - pole.y, x - pole.x);
-   var d = Math.abs(norm(a0 - MW_ANGLE));
-   if (Math.random() > 0.35 + 0.65 * Math.exp(-Math.pow(d / 0.6, 2))) continue;
+   var x = poleRef.x + (Math.random() * 2 - 1) * worldRef.halfW;
+   var y = poleRef.y + (Math.random() * 2 - 1) * worldRef.halfH;
+   var bf = bandFrac(x, y, poleRef.x, poleRef.y, bandWidth);
+   if (Math.random() > floor + (1 - floor) * bf) continue;
    var b = powerBrightness(opt.pow);
    var star = {
     x: x, y: y,
@@ -116,25 +158,161 @@
     alpha: opt.alphaMin + b * (opt.alphaMax - opt.alphaMin),
     ph: Math.random() * Math.PI * 2,
     sp: 0.4 + Math.random() * 1.1,
-    tw: opt.tw,
+    tw: opt.tw || 0,
     tint: Math.random() < 0.9 ? '232,230,221' : Math.random() < 0.7 ? '216,192,138' : '160,190,230',
-    halo: opt.halo && b > 0.93,
+    halo: !!(opt.halo && b > 0.93),
    };
    out.push(star);
   }
   return out;
  }
 
+ /* far/mid/near-bulk: baked once per layout() onto a world-sized offscreen canvas, each at its
+  own reduced resolution (bakeScale, well under 1 device pixel per CSS pixel — see the
+  prerenderLayer call sites in layout() for the actual factors). deliberately soft: these are
+  meant to read as out-of-focus background dust (only nearBright, below, stays pin-sharp), and
+  a smaller backing store is both cheaper to rasterize once here AND, far more importantly,
+  cheaper for drawImage() to resample every single frame (see next paragraph). frame() just
+  drawImage()s the visible window of each canvas with the camera offset — no per-star cost at
+  all, so these layers can carry the bulk of the star count for density without touching frame
+  budget.
+
+  near is split: ~98% of it (nearBulk) is baked in here alongside far/mid, since a software
+  canvas rasterizer (no GPU compositing — the config this was profiled under, and plausibly
+  some real visitors' browsers too: locked-down corporate Chrome, some VMs/remote desktops,
+  older integrated graphics falling back to software) turned out to cost ~90ms/frame once 1400
+  individually beginPath()+arc()+fill()'d circles were actually scattered across the whole
+  canvas instead of degenerately stacked on one point (see the root-cause note: that's exactly
+  what the pre-fix bug had been accidentally hiding — profiled with CDP's Profiler domain,
+  91% of frame time was native fill() called from this loop). only the brightest ~2% (b > .93,
+  the ones that already carry the halo-sprite flag) stay live-drawn in nearBright, per-star,
+  with real twinkle — a few dozen stars, negligible cost, and they're the only ones a viewer's
+  eye actually registers twinkling anyway. moving the bulk to prerendered drawImage() calls
+  fixed that, but re-profiling turned up a second, smaller version of the same story: 3 full-
+  resolution drawImage() calls of a ~2400×1500 source, every frame, cost ~72% of frame time on
+  the same software rasterizer (large source + a sub-pixel-positioned destination forces a
+  bilinear resample of the whole image, not a cheap blit). bakeScale below is the fix: shrink
+  the source resolution so there's simply less to resample. net result on the profiled machine:
+  ~90ms/frame -> ~1.5ms/frame average. */
+ var farCanvas = document.createElement('canvas'), farCtx = farCanvas.getContext('2d');
+ var midCanvas = document.createElement('canvas'), midCtx = midCanvas.getContext('2d');
+ var nearCanvas = document.createElement('canvas'), nearCtx = nearCanvas.getContext('2d');
+ function prerenderLayer(canvas, cctx, stars, poleRef, worldRef, bakeScale) {
+  var w = worldRef.halfW * 2, h = worldRef.halfH * 2;
+  canvas.width = Math.max(1, Math.round(w * bakeScale));
+  canvas.height = Math.max(1, Math.round(h * bakeScale));
+  cctx.setTransform(bakeScale, 0, 0, bakeScale, 0, 0); /* star math below stays in full CSS-world units; the transform is what actually shrinks the backing store */
+  cctx.clearRect(0, 0, w, h);
+  var ox = poleRef.x - worldRef.halfW, oy = poleRef.y - worldRef.halfH;
+  for (var i = 0; i < stars.length; i++) {
+   var s = stars[i];
+   cctx.beginPath();
+   cctx.arc(s.x - ox, s.y - oy, s.size, 0, 7);
+   cctx.fillStyle = 'rgba(' + s.tint + ',' + s.alpha + ')';
+   cctx.fill();
+  }
+ }
+ function drawPrerenderedLayer(canvas, pf, alphaMul) {
+  var lcx = pole.x + (CAM.cx - pole.x) * pf, lcy = pole.y + (CAM.cy - pole.y) * pf;
+  var ox = pole.x - WORLD.halfW, oy = pole.y - WORLD.halfH;
+  var sx0 = (ox - lcx) * CAM.scale + W / 2, sy0 = (oy - lcy) * CAM.scale + H / 2;
+  var dw = WORLD.halfW * 2 * CAM.scale, dh = WORLD.halfH * 2 * CAM.scale;
+  ctx.globalAlpha = alphaMul;
+  ctx.drawImage(canvas, sx0, sy0, dw, dh);
+  ctx.globalAlpha = 1;
+ }
+
+ /* live dust layer draw (near only): `pf` (pan factor) is how much of the camera's displacement
+  from home this layer feels, implemented as a per-layer virtual camera center that only
+  travels pf of the way from home to CAM's actual center — same trick as drawPrerenderedLayer,
+  just per-star since near still twinkles and carries halo sprites. */
+ function drawDust(layer, now, pf) {
+  var lcx = pole.x + (CAM.cx - pole.x) * pf, lcy = pole.y + (CAM.cy - pole.y) * pf;
+  var bgMul = zoomed ? 0.35 : 1;
+  for (var i = 0; i < layer.length; i++) {
+   var s = layer[i];
+   var sx = (s.x - lcx) * CAM.scale + W / 2, sy = (s.y - lcy) * CAM.scale + H / 2;
+   if (sx < -8 || sx > W + 8 || sy < -8 || sy > H + 8) continue;
+   var tw = still ? 1 : (1 - s.tw) + s.tw * (0.72 + 0.28 * Math.sin((now / 1000) * s.sp + s.ph));
+   var rr = s.size * Math.max(CAM.scale, 0.6);
+   if (s.halo) {
+    var sprite = haloSprites[s.tint];
+    if (sprite) {
+     var hs = rr * 7;
+     ctx.globalAlpha = s.alpha * tw * bgMul;
+     ctx.drawImage(sprite, sx - hs / 2, sy - hs / 2, hs, hs);
+     ctx.globalAlpha = 1;
+    }
+   }
+   ctx.beginPath();
+   ctx.arc(sx, sy, rr, 0, 7);
+   ctx.fillStyle = 'rgba(' + s.tint + ',' + (s.alpha * tw * bgMul) + ')';
+   ctx.fill();
+  }
+ }
+
+ /* atmosphere, viewport-sized (not world-sized: it's a lens/eye effect, not a pannable plane),
+  rebuilt once per layout(). three coats: a subliminal horizon lift + vignette base, mottled
+  nebulosity blobs hugging the MW_ANGLE band, and the band wash itself on top, slightly
+  brightened so it doesn't read as a flat gradient under the blobs. */
  var mwCanvas = document.createElement('canvas'), mwCtx = mwCanvas.getContext('2d');
- function buildMilkyWash() {
+ function buildAtmosphere() {
   mwCanvas.width = Math.max(1, W); mwCanvas.height = Math.max(1, H);
   mwCtx.clearRect(0, 0, W, H);
-  var cx = W / 2, cy = H / 2, len = Math.hypot(W, H);
-  var px = -Math.sin(MW_ANGLE), py = Math.cos(MW_ANGLE); /* perpendicular to the band direction: gradient crosses the band's width */
-  var x0 = cx - px * len / 2, y0 = cy - py * len / 2, x1 = cx + px * len / 2, y1 = cy + py * len / 2;
+  var cx = W / 2, cy = H / 2;
+
+  /* horizon glow: darkest at top, a ~4%-luminance lift toward the bottom edge. never flat black. */
+  var vgrad = mwCtx.createLinearGradient(0, 0, 0, H);
+  vgrad.addColorStop(0, 'rgba(200,210,230,0)');
+  vgrad.addColorStop(0.55, 'rgba(200,210,230,0)');
+  vgrad.addColorStop(1, 'rgba(205,215,232,.045)');
+  mwCtx.fillStyle = vgrad;
+  mwCtx.fillRect(0, 0, W, H);
+
+  /* gentle radial vignette */
+  var vig = mwCtx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(W, H) * 0.62);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,.12)');
+  mwCtx.fillStyle = vig;
+  mwCtx.fillRect(0, 0, W, H);
+
+  /* mottled nebulosity: 3 octaves of soft, band-hugging blobs (elongated along MW_ANGLE) so the
+   milky way reads as cloud structure rather than a flat gradient. centers rejection-sampled
+   with the same perpendicular gaussian used for the star density bias, so clouds and star-river
+   line up. */
+  var octaves = [
+   { n: 22, rMin: 90, rMax: 190, a: .022 },
+   { n: 30, rMin: 40, rMax: 95, a: .028 },
+   { n: 40, rMin: 16, rMax: 40, a: .032 },
+  ];
+  var bw = Math.min(W, H) * 0.16;
+  var along = Math.hypot(W, H) * 0.65;
+  var dirX = Math.cos(MW_ANGLE), dirY = Math.sin(MW_ANGLE);
+  var perpX = -Math.sin(MW_ANGLE), perpY = Math.cos(MW_ANGLE);
+  octaves.forEach(function (oct) {
+   for (var i = 0; i < oct.n; i++) {
+    var perp = (Math.random() * 2 - 1) * bw * 1.4;
+    if (Math.random() > Math.exp(-(perp * perp) / (2 * bw * bw))) continue;
+    var t = (Math.random() * 2 - 1) * along;
+    var bx = cx + dirX * t + perpX * perp, by = cy + dirY * t + perpY * perp;
+    var r = oct.rMin + Math.random() * (oct.rMax - oct.rMin);
+    var g = mwCtx.createRadialGradient(bx, by, 0, bx, by, r);
+    g.addColorStop(0, 'rgba(224,220,206,' + oct.a + ')');
+    g.addColorStop(1, 'rgba(224,220,206,0)');
+    mwCtx.fillStyle = g;
+    mwCtx.save();
+    mwCtx.translate(bx, by); mwCtx.rotate(MW_ANGLE); mwCtx.scale(1.6, 1); mwCtx.translate(-bx, -by);
+    mwCtx.beginPath(); mwCtx.arc(bx, by, r, 0, 7); mwCtx.fill();
+    mwCtx.restore();
+   }
+  });
+
+  /* the band wash itself, brightened slightly so it sits visibly under the nebulosity+dust */
+  var len = Math.hypot(W, H);
+  var x0 = cx - perpX * len / 2, y0 = cy - perpY * len / 2, x1 = cx + perpX * len / 2, y1 = cy + perpY * len / 2;
   var grad = mwCtx.createLinearGradient(x0, y0, x1, y1);
   grad.addColorStop(0, 'rgba(220,216,204,0)');
-  grad.addColorStop(0.5, 'rgba(224,220,206,0.05)');
+  grad.addColorStop(0.5, 'rgba(224,220,206,.065)');
   grad.addColorStop(1, 'rgba(220,216,204,0)');
   mwCtx.fillStyle = grad;
   mwCtx.fillRect(0, 0, W, H);
@@ -159,10 +337,13 @@
  }
 
  /* full re-layout: viewport size, world bounds, every constellation's static position, and
-  the 3 dust layers. called on boot and on every resize. structured so that ALL of it is
-  computed into local scratch vars first and only written onto shared state at the very end
-  of a successful run, so a transient bad viewport (0-size mid-resize) or a thrown error can
-  never leave the sky half old / half new. */
+  the dust layers (near generated live, far/mid generated + baked to offscreen canvases).
+  called on boot and on every resize. structured so that ALL of it is computed into local
+  scratch vars first and only written onto shared state at the very end of a successful run,
+  so a transient bad viewport (0-size mid-resize) or a thrown error can never leave the sky
+  half old / half new. genLayer/prerenderLayer take the fresh newPole/newWorld explicitly
+  (see the root-cause note above the dust section) rather than reading the shared globals,
+  which are still the previous layout's values at this point in the function. */
  function layout() {
   var newW = innerWidth, newH = innerHeight;
   if (!newW || !newH) return; /* transient 0×0 mid-resize: keep the last good frame, retry on the next resize/rAF */
@@ -186,8 +367,8 @@
    } else if (zoomed) {
     zoomed = false; activeId = null; /* defensive: never leave the camera pointed at a dead target */
    }
-   camAnim = null; /* any in-flight fly tween targeted the pre-resize layout; drop it, we just snapped to the correct one */
-   gazeHomeUntil = 0; gazeIdling = false; /* pre-resize gaze state is stale */
+   camAnim = null; /* any in-flight fly/freeze tween targeted the pre-resize layout; drop it, we just snapped to the correct one */
+   frozen = false; gazeIdling = false; /* pre-resize gaze/freeze state is stale */
 
    var results = new Array(CONS.length);
    for (var i = 0; i < CONS.length; i++) {
@@ -214,10 +395,23 @@
     };
    }
 
-   var far = genLayer(mobile ? 260 : 520, { sizeMin: .25, sizeMax: .55, alphaMin: .12, alphaMax: .28, pow: 2.2, tw: .12, halo: false });
-   var mid = genLayer(mobile ? 340 : 680, { sizeMin: .3, sizeMax: .85, alphaMin: .18, alphaMax: .4, pow: 2.6, tw: .18, halo: false });
-   var near = genLayer(mobile ? 480 : 980, { sizeMin: .35, sizeMax: 1.9, alphaMin: .28, alphaMax: .82, pow: 3.2, tw: .26, halo: true });
-   buildMilkyWash();
+   /* counts: far/mid/near-bulk carry the bulk (they're free at frame time, baked once below);
+    only near's brightest sliver stays live-drawn. floor/bandWidth bias the majority of far/mid
+    toward the MW_ANGLE band so it reads as a grainy star-river; near stays close to uniform (a
+    gentle nudge only) since it's the foreground/personal-space layer. */
+   var far = genLayer(mobile ? 1200 : 3200, { sizeMin: .22, sizeMax: .5, alphaMin: .08, alphaMax: .22, pow: 2.4, floor: .10, bandWidth: newWorld.halfH * 0.26 }, newPole, newWorld);
+   var mid = genLayer(mobile ? 900 : 2200, { sizeMin: .26, sizeMax: .8, alphaMin: .12, alphaMax: .34, pow: 2.7, floor: .14, bandWidth: newWorld.halfH * 0.30 }, newPole, newWorld);
+   var near = genLayer(mobile ? 650 : 1400, { sizeMin: .35, sizeMax: 1.9, alphaMin: .28, alphaMax: .82, pow: 3.2, tw: .26, halo: true, floor: .60, bandWidth: newWorld.halfH * 0.42 }, newPole, newWorld);
+   var nearBulk = [], nearBright = [];
+   for (var ni = 0; ni < near.length; ni++) (near[ni].halo ? nearBright : nearBulk).push(near[ni]);
+   /* baked below native resolution: these read as soft background dust anyway (only nearBright
+    stays pin-sharp, live-drawn), and a smaller source image is dramatically cheaper for
+    drawImage() to resample every frame in a software (non-GPU-composited) canvas backend —
+    see the dust-section note above for the profiling that found this. */
+   prerenderLayer(farCanvas, farCtx, far, newPole, newWorld, 0.4);
+   prerenderLayer(midCanvas, midCtx, mid, newPole, newWorld, 0.45);
+   prerenderLayer(nearCanvas, nearCtx, nearBulk, newPole, newWorld, 0.55);
+   buildAtmosphere();
 
    /* --- commit: everything above succeeded, so write it all at once. --- */
    pole.x = newPole.x; pole.y = newPole.y;
@@ -227,7 +421,7 @@
     cc.localPts = res.localPts; cc.maxR = res.maxR; cc.wx = res.wx; cc.wy = res.wy;
     cc.rad = res.rad; cc.align = res.align; cc.labelDY = res.labelDY;
    }
-   dustFar = far; dustMid = mid; dustNear = near;
+   dustNearBright = nearBright;
   } catch (err) {
    /* leave the last good layout in place rather than a half-built one */
    if (window.console && console.warn) console.warn('sky layout() failed, keeping previous frame', err);
@@ -262,7 +456,7 @@
  function flyTo(id) {
   if (!byId[id] || activeId === id && zoomed && !camAnim) return;
   zoomed = true; activeId = id; ptrDragging = false;
-  meteors = [];
+  meteors = []; satellite = null;
   dispatchEvent(new CustomEvent('sky:zoomstart', { detail: { id: id } }));
   tweenCam(targetCamFor(id), 700, function () {
    dispatchEvent(new CustomEvent('sky:settle', { detail: { id: id } }));
@@ -280,7 +474,18 @@
  }
  function stepNext() { if (!zoomed) return; var i = MODULES.indexOf(activeId); flyTo(MODULES[(i + 1) % MODULES.length]); }
  function stepPrev() { if (!zoomed) return; var i = MODULES.indexOf(activeId); flyTo(MODULES[(i - 1 + MODULES.length) % MODULES.length]); }
- function goHome() { gazeHomeUntil = performance.now() + 1500; if (zoomed) flyOut(); }
+
+ /* polaris click: while a module is zoomed, always zoom out first (existing nav semantics,
+  unaffected by freeze). otherwise toggles freeze: click 1 eases the camera home over ~1s and
+  holds it there (gaze-follow and idle wander both suspended — updateGaze() bails out early
+  whenever frozen is true, same as it already does for zoomed), click 2 drops the hold and
+  gaze-follow resumes on the very next frame, immediately, from wherever the pointer is. */
+ function onPolarisClick() {
+  if (zoomed) { flyOut(); return; }
+  frozen = !frozen;
+  if (frozen) { gazeIdling = false; tweenCam({ scale: 1, cx: pole.x, cy: pole.y }, 1000); }
+  else { camAnim = null; }
+ }
 
  function pulseAlpha(c, now) {
   if (c.pulseStart == null) return 0;
@@ -370,34 +575,10 @@
   ctx.fillStyle = 'rgba(240,236,222,.15)'; ctx.fill();
   ctx.beginPath(); ctx.arc(p.x, p.y, 1.9 * s, 0, 7);
   ctx.fillStyle = 'rgba(240,236,222,' + (0.75 + 0.25 * tw) + ')'; ctx.fill();
- }
-
- /* dust layer draw: `pf` (pan factor) is how much of the camera's displacement from home this
-  layer feels: 1.0 = moves exactly with the constellations (the near layer IS that plane),
-  smaller pf lags behind, reading as depth. implemented as a per-layer virtual camera center
-  that only travels pf of the way from home to CAM's actual center. */
- function drawDust(layer, now, pf) {
-  var lcx = pole.x + (CAM.cx - pole.x) * pf, lcy = pole.y + (CAM.cy - pole.y) * pf;
-  var bgMul = zoomed ? 0.35 : 1;
-  for (var i = 0; i < layer.length; i++) {
-   var s = layer[i];
-   var sx = (s.x - lcx) * CAM.scale + W / 2, sy = (s.y - lcy) * CAM.scale + H / 2;
-   if (sx < -8 || sx > W + 8 || sy < -8 || sy > H + 8) continue;
-   var tw = still ? 1 : (1 - s.tw) + s.tw * (0.72 + 0.28 * Math.sin((now / 1000) * s.sp + s.ph));
-   var rr = s.size * Math.max(CAM.scale, 0.6);
-   if (s.halo) {
-    var sprite = haloSprites[s.tint];
-    if (sprite) {
-     var hs = rr * 7;
-     ctx.globalAlpha = s.alpha * tw * bgMul;
-     ctx.drawImage(sprite, sx - hs / 2, sy - hs / 2, hs, hs);
-     ctx.globalAlpha = 1;
-    }
-   }
-   ctx.beginPath();
-   ctx.arc(sx, sy, rr, 0, 7);
-   ctx.fillStyle = 'rgba(' + s.tint + ',' + (s.alpha * tw * bgMul) + ')';
-   ctx.fill();
+  if (frozen) {
+   ctx.beginPath(); ctx.arc(p.x, p.y, 9 * s, 0, 7);
+   ctx.strokeStyle = 'rgba(216,192,138,.38)'; ctx.lineWidth = 1;
+   ctx.stroke();
   }
  }
 
@@ -425,7 +606,8 @@
 
  /* meteors: world-space now (they pan with the sky). CAM.scale is always 1 while meteors are
   eligible to spawn (only when !zoomed), so world deltas equal screen deltas and the direction
-  vector used for the head can double as the screen-space tail direction. */
+  vector used for the head can double as the screen-space tail direction. never overlaps the
+  satellite (mutually exclusive spawn gates on both sides). */
  function scheduleMeteor(now) {
   var gap = 90000 + Math.random() * 60000; /* 90-150s baseline */
   if (Math.random() < 0.15) gap += 90000 + Math.random() * 90000; /* sometimes none for 4+ min */
@@ -443,7 +625,7 @@
   meteors.push({ x0: wx0, y0: wy0, vx: Math.cos(ang) * speed * dir, vy: Math.sin(ang) * speed, t0: now, life: life });
  }
  function drawMeteors(now) {
-  if (!zoomed && meteors.length === 0 && now >= meteorNext) spawnMeteor(now);
+  if (!zoomed && meteors.length === 0 && !satellite && now >= meteorNext) spawnMeteor(now);
   for (var m = meteors.length - 1; m >= 0; m--) {
    var mt = meteors[m];
    var el = (now - mt.t0) / 1000;
@@ -464,20 +646,57 @@
   }
  }
 
+ /* satellite: a single dim point crossing the world in a slow straight line (35-50s), at most
+  every few minutes, never alongside a meteor. no tail, no glow — just a quiet moving dot. */
+ function scheduleSatellite(now) {
+  satelliteNext = now + 150000 + Math.random() * 120000; /* every 2.5-4.5 min */
+ }
+ function spawnSatellite(now) {
+  var dir = Math.random() < 0.5 ? 1 : -1;
+  var ang = (Math.random() * 30 - 15) * Math.PI / 180; /* shallow, near-horizontal path */
+  var life = 35 + Math.random() * 15;
+  var spanX = WORLD.halfW * 2;
+  var speed = (spanX * 1.15) / life;
+  var wx0 = dir > 0 ? pole.x - WORLD.halfW - 0.08 * spanX : pole.x + WORLD.halfW + 0.08 * spanX;
+  var wy0 = pole.y + (Math.random() * 2 - 1) * WORLD.halfH * 0.5;
+  satellite = { x0: wx0, y0: wy0, vx: Math.cos(ang) * speed * dir, vy: Math.sin(ang) * speed * 0.3, t0: now, life: life };
+ }
+ function drawSatellite(now) {
+  if (!zoomed && !satellite && meteors.length === 0 && now >= satelliteNext) spawnSatellite(now);
+  if (!satellite) return;
+  var el = (now - satellite.t0) / 1000;
+  if (el > satellite.life) { satellite = null; scheduleSatellite(now); return; }
+  var env = el < 2 ? el / 2 : el > satellite.life - 2 ? (satellite.life - el) / 2 : 1;
+  var wx = satellite.x0 + satellite.vx * el, wy = satellite.y0 + satellite.vy * el;
+  var p = baseToScreen(wx, wy);
+  ctx.beginPath(); ctx.arc(p.x, p.y, 1.1, 0, 7);
+  ctx.fillStyle = 'rgba(210,214,222,' + (0.4 * env) + ')';
+  ctx.fill();
+ }
+
  /* --- the gaze camera: pointer pans opposite-wise through a damped spring, rubber-banded at
   the world margin; idle (6s no movement, or always on touch when not dragging) wanders on a
-  slow Lissajous drift; touch drag pans directly with release momentum. zoomed state suspends
-  all of this (the fly-in system owns CAM then). --- */
- var K = 0.7; /* target = home + (pointer - viewportCenter) * K: exactly sweeps the world margin at full mouse travel */
- var SPRING_TAU = 0.2; /* ~8%/frame at 60fps: CAM eases toward target, never snaps */
+  slow Lissajous drift; touch drag pans directly (scaled the same as pointer) with release
+  momentum. zoomed or frozen state suspends all of this (the fly-in system / the freeze-tween
+  owns CAM then).
+
+  ambient, not navigational: full pointer sweep (or a full-width touch drag) moves the raw
+  camera by only ~4-5% of the viewport width (~60-65px at 1440w) — small-amplitude, symbolic
+  parallax that's felt more than seen, since the home pose already shows every constellation
+  and nothing depends on panning to reach content. GAZE_PF/MID_PF/FAR_PF (declared up with
+  gazeCam()) then further split that already-small travel into depth ratios ~.9/.7/.5. K and
+  WANDER_AMP below are calibrated against rubber()'s edge response (see the K/WANDER_AMP
+  comments) rather than being the raw pixel targets themselves, since rubber() isn't linear
+  even well inside the margin. --- */
+ var K = 0.057; /* target = home + (pointer - viewportCenter) * K: solved so full pointer travel, after rubber(), lands the raw camera ~4.5% of viewport width from home (was 0.7, ~100% of the margin) */
+ var SPRING_TAU = 0.13; /* snappy: CAM starts converging on the very next frame after any pointer move or idle-wander handoff, no gating — kept alive and immediate even though travel is now small */
  var IDLE_MS = 6000;
  var WANDER_PERIOD = 90; /* seconds */
- var WANDER_AMP = 0.15; /* fraction of the margin */
- var RUBBER_C = 1.4; /* softness of the edge compression */
+ var WANDER_AMP = 0.028; /* fraction of the margin, solved so idle wander's post-rubber excursion is ~20-25px at 1440w (was 0.15, ~75px) */
+ var RUBBER_C = 1.4; /* softness of the edge compression; at these small amplitudes it rarely engages */
 
  var lastMoveTime = -1e9;
  var gazeIdling = false, gazeIdleStart = 0, gazeIdleAnchorX = 0, gazeIdleAnchorY = 0;
- var gazeHomeUntil = 0;
  var touchRawX = 0, touchRawY = 0, touchVelX = 0, touchVelY = 0, touchMomentumActive = false;
 
  function rubber(raw, margin) {
@@ -496,7 +715,7 @@
 
  function updateGaze(now, dt) {
   if (still) { CAM.cx = pole.x; CAM.cy = pole.y; return; } /* prefers-reduced-motion / shot mode: static camera, no wander */
-  if (zoomed) return; /* the fly-in system owns CAM while a module is open */
+  if (zoomed || frozen) return; /* the fly-in system, or the freeze hold/tween, owns CAM while either is active */
 
   if (touch && ptrDragging) {
    CAM.cx = pole.x + rubber(touchRawX, WORLD.marginX);
@@ -505,9 +724,7 @@
   }
 
   var desiredX, desiredY;
-  if (now < gazeHomeUntil) {
-   desiredX = 0; desiredY = 0; /* polaris click: ease home, ignore other inputs briefly */
-  } else if (touch) {
+  if (touch) {
    if (touchMomentumActive) {
     touchRawX += touchVelX * dt; touchRawY += touchVelY * dt;
     var decay = Math.exp(-dt / 0.4);
@@ -541,6 +758,7 @@
 
  var t0 = performance.now(), lastT = t0;
  scheduleMeteor(t0);
+ scheduleSatellite(t0);
  function frame(now) {
   if (document.hidden) { if (!still) requestAnimationFrame(frame); return; }
   ctx.clearRect(0, 0, W, H);
@@ -549,13 +767,16 @@
   updateCam(now);
   updateGaze(now, dt);
 
-  ctx.drawImage(mwCanvas, 0, 0, W, H); /* faint milky-way wash, pre-rendered, composited under the dust */
-  drawDust(dustFar, now, 0.55);
-  drawDust(dustMid, now, 0.75);
-  drawDust(dustNear, now, 1);
+  ctx.drawImage(mwCanvas, 0, 0, W, H); /* atmosphere + nebulous milky-way wash, pre-rendered, composited under the dust */
+  var bgMul = zoomed ? 0.35 : 1;
+  var nearPf = zoomed ? 1 : GAZE_PF;
+  drawPrerenderedLayer(farCanvas, FAR_PF, bgMul);
+  drawPrerenderedLayer(midCanvas, MID_PF, bgMul * (0.94 + 0.06 * Math.sin(now / 4000))); /* whole-layer "breathing" stands in for per-star twinkle at near-zero cost */
+  drawPrerenderedLayer(nearCanvas, nearPf, bgMul * (0.92 + 0.08 * Math.sin(now / 2600))); /* the ~98% bulk of near, baked (see the dust section note on why) */
+  drawDust(dustNearBright, now, nearPf); /* the brightest ~2% of near, still live: real per-star twinkle + halo sprites, at negligible cost since it's only a few dozen stars */
 
   drawPolaris(now);
-  if (!still) drawMeteors(now); else if (zoomed) meteors = [];
+  if (!still) { drawMeteors(now); drawSatellite(now); } else if (zoomed) { meteors = []; satellite = null; }
 
   maybePulse(now);
 
@@ -596,7 +817,7 @@
   never pans, it only distinguishes a click from an accidental jiggle. on touch, one-finger
   drag pans the camera directly with momentum on release; tap still selects. clicking a
   constellation (even while zoomed, hit-tested through the camera transform) flies there;
-  clicking polaris resets home. while zoomed, a drag of either kind swipes between modules. */
+  clicking polaris toggles freeze (or zooms out first, if a module is open). */
  var ptrActive = false, ptrDragging = false;
  var ptr0 = { x: 0, y: 0 };
  var dragLastX = 0, dragLastY = 0, dragLastT = 0;
@@ -624,9 +845,9 @@
   if (!ptrDragging || zoomed) { if (still) repaint(); return; }
   if (touch) {
    var now = performance.now();
-   var mdx = e.clientX - dragLastX, mdy = e.clientY - dragLastY;
+   var mdx = (e.clientX - dragLastX) * K, mdy = (e.clientY - dragLastY) * K; /* same gentle ambient range as pointer gaze, not a 1:1 drag */
    var mdt = Math.max((now - dragLastT) / 1000, 0.001);
-   touchRawX -= mdx; touchRawY -= mdy; /* content follows the finger */
+   touchRawX -= mdx; touchRawY -= mdy; /* content follows the finger, softly */
    var ivx = -mdx / mdt, ivy = -mdy / mdt;
    touchVelX = touchVelX * 0.7 + ivx * 0.3; touchVelY = touchVelY * 0.7 + ivy * 0.3;
    dragLastX = e.clientX; dragLastY = e.clientY; dragLastT = now;
@@ -650,7 +871,7 @@
   if (!ptrDragging) {
    var pp = baseToScreen(pole.x, pole.y);
    if (Math.hypot(e.clientX - pp.x, e.clientY - pp.y) < 14) {
-    goHome();
+    onPolarisClick();
    } else {
     for (var i = 0; i < CONS.length; i++) {
      var c = CONS[i];
@@ -678,7 +899,7 @@
   flyOut: flyOut,
   next: stepNext,
   prev: stepPrev,
-  home: goHome,
+  home: onPolarisClick,
   echo: setEcho,
   current: function () { return activeId; },
   isZoomed: function () { return zoomed; },
