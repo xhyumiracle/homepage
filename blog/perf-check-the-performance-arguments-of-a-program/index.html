@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>perf - check the performance arguments of a program &middot; M1r4c13</title>
+<meta name="description" content="perf - check the performance arguments of a program -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">perf - check the performance arguments of a program</h1>
+<p class="meta"><span class="mono meta-date">2017.03.14</span></p>
+<div class="post-body"><p>If you want to investigate the performance arguments, like clock cycles, cpu utilize rate, etc., of a program under Linux, perf is a great tool here to help you.</p>
+<h4>Installation</h4>
+<pre><code class="language-bash">$ sudo apt update &amp;&amp; sudo apt install linux-tools-$(uname -r) linux-tools-generic
+</code></pre>
+<p>(ref: http://www.tecmint.com/perf-performance-monitoring-and-analysis-tool-for-linux/)</p>
+<h4>Simple Usage</h4>
+<pre><code class="language-bash">$ ll test
+-rwxr-xr-x 1 root root 8608 Mar 14 10:55 test*
+$ perf stat ./test
+haha                 &lt;-------- this is the output of test*
+ Performance counter stats for './test':
+
+          0.433868      task-clock (msec)         #    0.564 CPUs utilized          
+                 0      context-switches          #    0.000 K/sec                  
+                 0      cpu-migrations            #    0.000 K/sec                  
+                49      page-faults               #    0.113 M/sec                  
+   &lt;not supported&gt;      cycles                   
+   &lt;not supported&gt;      stalled-cycles-frontend  
+   &lt;not supported&gt;      stalled-cycles-backend   
+   &lt;not supported&gt;      instructions             
+   &lt;not supported&gt;      branches                 
+   &lt;not supported&gt;      branch-misses            
+
+       0.000769191 seconds time elapsed
+</code></pre>
+<p>Some items say <not supported>, like cycles/instructions. It's because the linux kernel doesn't support them.</p>
+<pre><code class="language-bash">$ perf list
+</code></pre>
+<p>You can view all the available arguments here.</p>
+<pre><code class="language-bash">$ perf stat -e cycles-ct -e cycles-t ./test
+ Performance counter stats for './test':
+
+           745,964      cycles-ct                                                   
+           747,306      cycles-t                                                    
+
+       0.000888103 seconds time elapsed
+</code></pre>
+<p>This might give you some hints about the cpu cycles</p>
+<pre><code class="language-bash">$ perf stat -e task-clock ./test
+ Performance counter stats for './test':
+
+          0.423036      task-clock (msec)         #    0.511 CPUs utilized          
+
+       0.000828073 seconds time elapsed
+</code></pre>
+<p>task-clock means the total cpu(s) execuation time (msec) for just this task. 0.511 represents the utilize rate of this task over the whole cpu(s). <br>
+This number is calculated by task-clock/totaltime(shown in the last line). In this case, 0.511 = 0.423036(msec)/0.000828073(sec)</p>
+<h5>Reference</h5>
+<ul>
+<li>
+<p><a href="https://perf.wiki.kernel.org/index.php/Tutorial#Default_event:_cycle_counting">Tutorial: Linux kernel profiling with perf</a></p>
+</li>
+<li>
+<p><a href="http://stackoverflow.com/questions/31073882/how-can-i-get-the-number-of-instructions-executed-by-a-program">stackoverflow: How can I get the number of instructions executed by a program?</a></p>
+</li>
+<li>
+<p><a href="http://askubuntu.com/questions/50145/how-to-install-perf-monitoring-tool">askubuntu.com: How to install “perf” monitoring tool?</a></p>
+</li>
+<li>
+<p><a href="http://stackoverflow.com/questions/22712956/why-does-perf-stat-show-stalled-cycles-backend-as-not-supported">stackoverflow: why does perf stat show “stalled-cycles-backend” as <not supported>?</a></p>
+</li>
+<li>
+<p><a href="http://zhengheng.me/2015/11/12/perf-stat/">perf stat 输出解读</a></p>
+</li>
+</ul></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

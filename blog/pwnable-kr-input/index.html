@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnable.kr - input &middot; M1r4c13</title>
+<meta name="description" content="Pwnable.kr - input -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnable.kr - input</h1>
+<p class="meta"><span class="mono meta-date">2017.01.24</span></p>
+<div class="post-body"><p>Writeup for input of <a href="http://pwnable.kr/play.php">pwnable.kr</a><br>
+Writeup ref: <a href="http://rk700.github.io/2014/11/16/input/">this blog</a></p>
+<h3>0x00 Puzzle</h3>
+<pre><code class="language-bash">Mom? how can I pass my input to a computer program?
+
+ssh input2@pwnable.kr -p2222 (pw:guest)
+</code></pre>
+<p>This is really a great puzzle to learn and practice linux input programming skill.<br>
+Covered 5 different possible types of inputing to a program.</p>
+<p>Beginners like me can learn a lot from this puzzle, especially solve it only with the help of google but not direct writeups.</p>
+<h3>0x01 Explore - Overview</h3>
+<pre><code class="language-bash">$ ssh input2@pwnable.kr 2222
+input2@ubuntu:~$ ls -l
+total 24
+-r--r----- 1 input2_pwn root      55 Jun 30  2014 flag
+-r-sr-x--- 1 input2_pwn input2 13250 Jun 30  2014 input
+-rw-r--r-- 1 root       root    1754 Jun 30  2014 input.c
+</code></pre>
+<p>Same as usual, pwn the binary file to cat the flag.</p>
+<p><strong>input.c:</strong></p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+int main(int argc, char* argv[], char* envp[]){
+        printf(&quot;Welcome to pwnable.kr\n&quot;);
+        printf(&quot;Let's see if you know how to give input to program\n&quot;);
+        printf(&quot;Just give me correct inputs then you will get the flag :)\n&quot;);
+
+        // argv
+        if(argc != 100) return 0;
+        if(strcmp(argv['A'],&quot;\x00&quot;)) return 0;
+        if(strcmp(argv['B'],&quot;\x20\x0a\x0d&quot;)) return 0;
+        printf(&quot;Stage 1 clear!\n&quot;);
+
+        // stdio
+        char buf[4];
+        read(0, buf, 4);
+        if(memcmp(buf, &quot;\x00\x0a\x00\xff&quot;, 4)) return 0;
+        read(2, buf, 4);
+        if(memcmp(buf, &quot;\x00\x0a\x02\xff&quot;, 4)) return 0;
+        printf(&quot;Stage 2 clear!\n&quot;);
+
+        // env
+        if(strcmp(&quot;\xca\xfe\xba\xbe&quot;, getenv(&quot;\xde\xad\xbe\xef&quot;))) return 0;
+        printf(&quot;Stage 3 clear!\n&quot;);
+
+        // file
+        FILE* fp = fopen(&quot;\x0a&quot;, &quot;r&quot;);
+        if(!fp) return 0;
+        if( fread(buf, 4, 1, fp)!=1 ) return 0;
+        if( memcmp(buf, &quot;\x00\x00\x00\x00&quot;, 4) ) return 0;
+        fclose(fp);
+        printf(&quot;Stage 4 clear!\n&quot;);
+
+        // network
+        int sd, cd;
+        struct sockaddr_in saddr, caddr;
+        sd = socket(AF_INET, SOCK_STREAM, 0);
+        if(sd == -1){
+                printf(&quot;socket error, tell admin\n&quot;);
+                return 0;
+        }
+        saddr.sin_family = AF_INET;
+        saddr.sin_addr.s_addr = INADDR_ANY;
+        saddr.sin_port = htons( atoi(argv['C']) );
+        if(bind(sd, (struct sockaddr*)&amp;saddr, sizeof(saddr)) &lt; 0){
+                printf(&quot;bind error, use another port\n&quot;);
+                return 1;
+        }
+        listen(sd, 1);
+        int c = sizeof(struct sockaddr_in);
+        cd = accept(sd, (struct sockaddr *)&amp;caddr, (socklen_t*)&amp;c);
+        if(cd &lt; 0){
+                printf(&quot;accept error, tell admin\n&quot;);
+                return 0;
+        }
+        if( recv(cd, buf, 4, 0) != 4 ) return 0;
+        if(memcmp(buf, &quot;\xde\xad\xbe\xef&quot;, 4)) return 0;
+        printf(&quot;Stage 5 clear!\n&quot;);
+
+        // here's your flag
+        system(&quot;/bin/cat flag&quot;);
+        return 0;
+}
+</code></pre>
+<p>There are 5 stages before the <code>/bin/cat flag</code>, seems no other easy way to bypass them.</p>
+<h3>0x02 Stage1 - argv</h3>
+<pre><code class="language-c">// argv
+        if(argc != 100) return 0;
+        if(strcmp(argv['A'],&quot;\x00&quot;)) return 0;
+        if(strcmp(argv['B'],&quot;\x20\x0a\x0d&quot;)) return 0;
+        printf(&quot;Stage 1 clear!\n&quot;);
+</code></pre>
+<ul>
+<li>
+<p>First, we need to pass 100 arguments to the binary.</p>
+</li>
+<li>
+<p>Second, number 65 (=ord('A')) argument must be \x00 (one byte)</p>
+</li>
+<li>
+<p>Third, number 66 (=ord('B')) argument must be \x20\x0a\x0d (three byte)</p>
+</li>
+</ul>
+<p>My very first idea to pass those checking is simply:</p>
+<pre><code class="language-bash">./input `python -c &quot;print 'A ' * 64 + '\x00 \x20\x0a\x0d' + ' A'*(99-64-2)&quot;`
+</code></pre>
+<p>But it didn't work, then I printed out the argv and found that \x00 cannot be passed to the program successfully since it represent the end of a string.</p>
+<p>Then I tried two ways in python </p>
+<pre><code class="language-python">subprocess.call(['./input', arg1, arg2, ...])
+subprocess.call(&quot;./input &quot;+payload, shell=True)
+</code></pre>
+<p>Both throwed error and said arguments should contain only strings.</p>
+<p>So I started google and found the writeup linked at the top of this page, where I learned how to execute binary with arguments in C. There is no such limits in C like python to the arguments.</p>
+<p>here comes the core code for Stage 1:</p>
+<pre><code class="language-c">#include &lt;unistd.h&gt;
+char *argv[101] = {[0 ... 99]=&quot;A&quot;};
+argv['A'] = &quot;\x00&quot;;
+argv['B'] = &quot;\x20\x0a\x0d&quot;;
+execve(&quot;./input&quot;, argv);
+</code></pre>
+<p>Here I learned a new guesture to set value for char* when defined it.</p>
+<p>Stage 1 done.</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;string.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;arpa/inet.h&gt;
+
+int main(){
+char *argv[101] = {[0 ... 99]=&quot;A&quot;};
+char *envp[2]={&quot;\xde\xad\xbe\xef=\xca\xfe\xba\xbe&quot;};
+argv['A'] = &quot;\x00&quot;;
+argv['B'] = &quot;\x20\x0a\x0d&quot;;
+argv['C'] = &quot;81235&quot;;
+int pipe1[2], pipe2[2];
+if(pipe(pipe1)==-1||pipe(pipe2)==-1){
+printf(&quot;error pipe\n&quot;);
+exit(1);
+}
+if(fork() == 0){
+dup2(pipe1[0],0);
+close(pipe1[0]);
+close(pipe1[1]);
+dup2(pipe2[0],2);
+close(pipe2[0]);
+close(pipe2[1]);
+execve(&quot;./input&quot;, argv, envp);
+}else{
+write(pipe1[1], &quot;\x00\x0a\x00\xff&quot;, 4);
+write(pipe2[1], &quot;\x00\x0a\x02\xff&quot;, 4);
+
+struct sockaddr_in saddr;
+int sock = socket(AF_INET, SOCK_STREAM, 0);
+memset(&amp;saddr, 0, sizeof(saddr));
+        saddr.sin_family = AF_INET;
+        //saddr.sin_addr.s_addr = INADDR_ANY;
+        saddr.sin_port = htons( atoi(argv['C']) );
+        saddr.sin_addr.s_addr = inet_addr(&quot;127.0.0.1&quot;);
+sleep(5);
+        connect(sock, (struct sockaddr *) &amp;saddr, sizeof(saddr));
+send(sock, &quot;\xde\xad\xbe\xef&quot;, 4, 0);
+close(sock);
+
+}
+return 0;
+}
+
+</code></pre>
+<p>(to be continue)</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

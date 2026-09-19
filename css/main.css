@@ -5,7 +5,7 @@
 @font-face { font-family: 'Spectral'; src: url('../fonts/spectral-400i.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
 @font-face { font-family: 'Spectral'; src: url('../fonts/spectral-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
 @font-face { font-family: 'PlexMono'; src: url('../fonts/plexmono-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'NotoSerifSCsub'; src: url('../fonts/notoserif-sc-subset.woff2?v=9') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'NotoSerifSCsub'; src: url('../fonts/notoserif-sc-subset.woff2?v=10') format('woff2'); font-weight: 500; font-display: swap; }
 
 :root {
  --bg: #070a12;
@@ -195,6 +195,8 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
 .faint-list li { padding: .55rem 0; font-size: .95rem; }
 .faint-note { display: block; font-size: .8rem; color: var(--faint); margin-top: .1rem; }
 .faint-dead { color: var(--dim); }
+.faint-list a.faint-dead { color: var(--gold); border-bottom: 1px solid rgba(216,192,138,.3); }
+.faint-list a.faint-dead:hover { border-bottom-color: var(--gold); }
 .ch-meta { margin-bottom: 1.2rem; }
 .coda { margin-top: 1.6rem; }
 .coda .cn-inline { color: var(--gold); opacity: .8; font-size: .9rem; letter-spacing: .18em; }

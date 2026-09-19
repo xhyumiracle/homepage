@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Vulnhub] analoguepond - Walkthrough Part 2 &middot; M1r4c13</title>
+<meta name="description" content="[Vulnhub] analoguepond - Walkthrough Part 2 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">[Vulnhub] analoguepond - Walkthrough Part 2</h1>
+<p class="meta"><span class="mono meta-date">2017.08.10</span><span class="tags"><span class="chip mono">ctf</span><span class="chip mono">vulnhub</span></span></p>
+<div class="post-body"><p>Hi guys.<br>
+In the last post, I've got the first flag-like file. </p>
+<pre><code class="language-bash"># cat flag1.txt.0xff
+3d3d674c7534795a756c476130565762764e4849793947496c4a585a6f5248496b4a3362334e3363684248496842435a756c6d5a675148616e6c5762675533623542434c756c47497a564764313557617442794d79415362764a6e5a674d585a7446325a79463256676732593046326467777961793932646751334a754e585a765247497a6c47613042695a4a4279615535454d70647a614b706b5a48316a642f67325930463264763032626a35535a6956486431395765756333643339794c364d486330524861
+</code></pre>
+<p>The .0xff indicates that this might be a hex format string, so encode it:</p>
+<pre><code class="language-bash"># cat flag1.txt.0xff | xxd -r -p
+==gLu4yZulGa0VWbvNHIy9GIlJXZoRHIkJ3b3N3chBHIhBCZulmZgQHanlWbgU3b5BCLulGIzVGd15WatByMyASbvJnZgMXZtF2ZyF2Vgg2Y0F2dgwyay92dgQ3JuNXZvRGIzlGa0BiZJByaU5EMpdzaKpkZH1jd/g2Y0F2dv02bj5SZiVHd19Weuc3d39yL6MHc0RHa
+</code></pre>
+<p>the result seems to be a base64 string because it has two '=' but I think we need to reverse and decrypt it:</p>
+<pre><code class="language-bash"># cat flag1.txt.0xff | xxd -r -p | rev | base64 --decode
+https://www.youtube.com/watch?v=GfJJk7i0NTk If this doesn't work, watch Wargames from 23 minutes in, you might find a password there or something...
+</code></pre>
+<p>Here we go. Turns out that this is a hint to the next step rather than the flag.</p>
+<p>So I watched the video couple of times and found nothing. (there is no sentence start with "the password is ..."</p>
+<p>I have to now what was I looking for.</p>
+<pre><code class="language-bash"># pwd
+/root/protovision
+# cat jim
+Mr Potato Head! Backdoors are not a...
+# cat melvin
+Boy you guys are dumb! I got this all figured out...
+</code></pre>
+<p>jim and melvin are two characters in the video. So I assumed that those missing words or prases are what we need to find. From the video, I knew that the key to something are <strong>'secret'</strong> and <strong>'myself'</strong>.</p>
+<p>Then, there another file, and I had to keep dig it until it ends. (man it was a pain)</p>
+<pre><code class="language-bash"># pwd
+/root/protovision/.I_have_you_now/.a/.b/.c/.d/.e/.f/.g/.h/.i/.j/.k/.l/.m/.n/.o/.p/.q/.r/.s/.t/.u./v./w./x./y/.z
+# ls -al
+total 16
+drwxr-xr-x 2 root root 4096 Dec 21  2016 .
+drwxr-xr-x 3 root root 4096 Dec 18  2016 ..
+---x------ 1 root root    7 Dec 18  2016 my_world_you_are_persistent_try
+-rw-r--r-- 1 root root 1420 Dec 21  2016 nleeson_key.gpg
+# cat my_world_you_are_persistent_try
+joshua
+</code></pre>
+<p>There I got another keyword <strong>'joshua'</strong>.</p>
+<p>I nc the .gpg file to kali, and decrypt it with <code>gpg -d</code>. It asked me for a passphrase. Tried secret, hit and got a private key file.</p>
+<p>Now I was clear. Because previously I've noticed this:</p>
+<pre><code class="language-bash">sandieshaw@puppet:/etc/puppet/modules/vulnhub/files$ pwd
+/etc/puppet/modules/vulnhub/files
+sandieshaw@puppet:/etc/puppet/modules/vulnhub/files$ cat barringsbank-passwd | grep nleeson
+nleeson:x:1000:1000:Nicholas Leeson,,,:/home/nleeson:/bin/bash
+sandieshaw@puppet:/etc/puppet/modules/vulnhub/files$ cat barringsbank-hosts.allow 
+#
+# hosts.allow   This file describes the names of the hosts which are
+#               allowed to use the local INET services, as decided
+#               by the '/usr/sbin/tcpd' server.
+#
+# Only allow connections from puppet.
+ALL: 192.168.122.2
+</code></pre>
+<p>There is a username called nleeson, and I got its key, so do ssh.<br>
+Notice that the .3 only allow connection from .2 which is where I was.<br>
+<em>Notice: need to chmod 600 nleeson_key before you ssh -i</em></p>
+<pre><code class="language-bash">sandieshaw@puppet:/tmp$ ssh -i /tmp/nleeson_key nleeson@192.168.122.3
+Enter passphrase for key '/tmp/nleeson_key': 
+Welcome to Ubuntu 14.04.3 LTS (GNU/Linux 4.4.0-57-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com/
+
+  System information as of Wed Aug  9 16:18:34 BST 2017
+
+  System load:  0.31              Processes:           109
+  Usage of /:   75.8% of 1.59GB   Users logged in:     0
+  Memory usage: 11%               IP address for eth0: 192.168.122.3
+  Swap usage:   0%
+
+  Graph this data and manage this system at:
+    https://landscape.canonical.com/
+
+</code></pre>
+<p>It asked me about the password even if I have the key. So I provided 'joshua', and passed it.</p>
+<p>Good! I'm in! (192.168.122.3) :D</p>
+<p>Time to break. Let's call it part 2, I'll publish part 3 soon.</p>
+<p>Thank you for your watching.</p>
+<p>Best!</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

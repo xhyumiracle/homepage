@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hosting Two Ghost Blogs Under One Domain with Nginx &middot; M1r4c13</title>
+<meta name="description" content="Hosting Two Ghost Blogs Under One Domain with Nginx -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Hosting Two Ghost Blogs Under One Domain with Nginx</h1>
+<p class="meta"><span class="mono meta-date">2017.01.16</span><span class="tags"><span class="chip mono">nginx</span><span class="chip mono">ghost</span></span></p>
+<div class="post-body"><h3>0x00 Requirements</h3>
+<p>Today I want to host 2 different blogs on the same server under the same domain (xhyumiracle.com). It is extremely easy if you can endure accessing blogs with port number, like <em>xhyumiracle.com:8000</em>.</p>
+<p>Appearently I can't, which means I want to <strong>access those two blogs by <em>xhyumiracle.com<em> and </em>xhyumiracle.com/test</em></strong>. So basically, this is the core requirement.</p>
+<p>This post includes the main process of how I solve the problem and what learned from it that. </p>
+<ul>
+<li>Ghost installation can be found on https://github.com/TryGhost/Ghost.</li>
+<li>If you have trouble accessing your new blog after installation, do check your firewall rules.</li>
+</ul>
+<h3>0x01 Nginx Overview (<a href="https://www.ghostforbeginners.com/how-to-proxy-port-80-to-2368-for-ghost-with-nginx/">ref</a>)</h3>
+<ul>
+<li>installation: <code>$ sudo apt-get install nginx -y</code> </li>
+<li>start/stop nginx: <code>$/etc/init.d/nginx start|stop|restart</code></li>
+<li>new configuration files can be added into <code>/etc/nginx/conf.d/</code> (CentOS) or <code>/etc/nginx/sites-enabled</code> (Ubuntu).</li>
+<li>if you find default sample Nginx configuration files under directories mentioned above, I would recommend deleting them.</li>
+</ul>
+<pre><code class="language-bash">rm /etc/nginx/sites-available/default
+rm /etc/nginx/sites-enabled/default
+rm /etc/nginx/conf.d/default
+</code></pre>
+<ul>
+<li>you can create configuration files like <code>your-domain-name.conf</code></li>
+<li>then place the following into your file:</li>
+</ul>
+<pre><code class="language-nginx">server {
+    listen 80;
+    server_name your-domain-name.com;
+    location / {
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   Host      $http_host;
+        proxy_pass         http://127.0.0.1:2368;
+    }
+}
+</code></pre>
+<ul>
+<li>Now restart Nginx to make your changes take affect: <code>$ /etc/init.d/nginx restart</code>, nginx should forward all the requests from port 80 to port 2368.</li>
+</ul>
+<h3>0x02 Access the Second Blog by /test</h3>
+<ul>
+<li>With the stuff mentioned above, it is easy to access a blog running on port 8000 by typing xhyumiracle.com (from port 80).</li>
+<li>But it's a little bit different when access another blog by typing xhyumiracle.com/test.</li>
+<li>First we try to modify the location /:</li>
+</ul>
+<pre><code class="language-nginx">server {
+    listen 80;
+    server_name xhyumiracle.com;
+    location /test {
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   Host      $http_host;
+        proxy_pass         http://127.0.0.1:128;
+    }
+}
+</code></pre>
+<ul>
+<li>In this way, Nginx did transfer the request to the port 128, but the '/test' in the uri was also forwarded to ghost running on port 128 and ghost didn't know what does '/test' mean, so we have to remove it before hand it to ghost.</li>
+</ul>
+<h3>0x03 Nginx Rewrite</h3>
+<ul>
+<li><strong>Goal:</strong> To remove the '/test' from the uri.</li>
+<li><strong>Syntax:</strong> <code>rewrite regex replacement [flag]</code>. flags: last|break|redirect|permanent</li>
+<li>
+<p>So just add one line before those proxy_set_header lines: <code>rewrite ^/test(.*) /$1 break</code></p>
+</li>
+<li>
+<p>In this way, ghost would be able to parse the url forwarded by nginx correctly.</p>
+</li>
+<li>But if you open your blog in the browser, you might see a plain text page without any css or image loaded.</li>
+<li>
+<p>This is because the requests (including images, css, etc.) caused by index page are <strong>not start with /test</strong>, so nginx cannot forward them to port 128, so always lost them.</p>
+</li>
+<li>
+<p>Looks like we need to forward requests to 128 even without /test prefix.</p>
+</li>
+</ul>
+<h3>0x04 $http_referer</h3>
+<ul>
+<li>There are several ways to achieve that, you can modify the ghost core code to accecpt '/test' prefix, or prepend 'test' to every url, or do things from the nginx side. Ningx way is better so we gonna do it.</li>
+<li>Recalling that there is a <em>Referer</em> field in the headers of requests to record the site who generated them originally, we can use it to tell out which requests belong to /test.</li>
+<li>In nginx, use <code>$http_referer</code> to get the referer field.</li>
+<li>So in location /, we need to place the following code:</li>
+</ul>
+<pre><code class="language-nginx">location / {
+   if ($http_referer ~ ^http://xhyumiracle.com/test.*){
+       rewrite ^(.*) /test$1 redirect;
+   }
+}
+</code></pre>
+<ul>
+<li>In this way, we can identify requests from /test and redirect them to /test, then let location /test to forward them to port 128.</li>
+</ul>
+<h3>0x05 /test/ghost</h3>
+<ul>
+<li>For now, nearlly all of the feature are enabled under /test. Even we refresh the page in browser it will return the right result.</li>
+<li>But the administrate page <em>/test/ghost</em> seems still 404 not found.</li>
+<li>I test it by return 403 as followed, it did return a 403 page when I type xhyumiracle.com/test/ghost, which means the problem is on ghost itself.</li>
+</ul>
+<pre><code class="language-nginx">location /test {
+    return 403;
+}
+</code></pre>
+<ul>
+<li>F12 to open debug mode of chrome, I find there is a 301 redirect response of GET /ghost and a GET /ghost/ followed.</li>
+<li>In ghost code, I found that it will redirect <code>/ghost</code> to <code>/ghost/</code>. In this way, new request doesn't carry a referer header, so that's why our nginx failed again.</li>
+<li>Knowing the reason, we can fix it by preventing the redirect happens.</li>
+<li>So we need to redirect it before it reachs ghost:</li>
+</ul>
+<pre><code class="language-nginx">location = /test/ghost { 
+    rewrite ghost$ ghost/ redirect; 
+}
+</code></pre>
+<ul>
+<li>Restart nginx, you can see the /test/ghost worked.</li>
+<li>But, the last but in this article I promise, if you are newlly set your blog and do not have a admin account yet, you might see another 404 error (lovely:).</li>
+<li>Let's fix it in a rude way this time.</li>
+</ul>
+<h3>0x06 /test/setup</h3>
+<ul>
+<li>The error mentioned above is caused by /setup redirected from /ghost if there isn't an admin account. The /setup request, again, do not have referer field in headers and failed our nginx rules.</li>
+<li>This time, I didn't come up with a nginx solution, so I dive into the ghost code trying to find out the redirect code.</li>
+<li>I did find it, it's in <code>your-ghost-path/core/server/middleware/redirect-to-setup.js</code></li>
+<li>Here is the redirect code snippet:</li>
+</ul>
+<pre><code class="language-nginx">if (!exists.setup[0].status &amp;&amp; !req.path.match(/\/setup\//)) {
+    return res.redirect(config.paths.subdir + '/ghost/setup/');
+}
+</code></pre>
+<ul>
+<li>So I just prepend the '/test' to the url.</li>
+</ul>
+<pre><code class="language-nginx">return res.redirect(config.paths.subdir + '/test/ghost/setup/');
+</code></pre>
+<ul>
+<li>Restart your ghost blog, fixed.</li>
+</ul>
+<h3>0x07 Be Safe</h3>
+<ul>
+<li>I know it would be dangerous and silly to publish nearlly all the configurations. But I treat sharing knowledgement as a much more important thing to others. So Please do not hack this site, at least do not hack it with the knowledge from this post.</li>
+<li>Thank you for your visiting.</li>
+</ul></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

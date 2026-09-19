@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EOS Dev Guide 0x01 &middot; M1r4c13</title>
+<meta name="description" content="EOS Dev Guide 0x01 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">EOS Dev Guide 0x01</h1>
+<p class="meta"><span class="mono meta-date">2018.05.30</span></p>
+<div class="post-body"><h2>pre-requisite</h2>
+<p>This article assumes you've finished git clone and auto-build stages.<br>
+If not, please check the previous post: <a href="http://xhyumiracle.com/eos-dev-guide-0x00/">EOS Dev Guide 0x00</a>.</p>
+<h2>add nodeos/cleos to PATH</h2>
+<p>for your convenience.<br>
+Make sure to add at least the paths of <code>eos/build/programs</code> and <code>eos/build/tools</code> to <code>$PATH</code>.<br>
+<strong>Tips:</strong> type <code>pwd</code> to get the full path.</p>
+<pre><code class="language-bash">$ export PATH=$PATH:/home/ubuntu/eos/build
+</code></pre>
+<p>You'd better write it to <code>~/.bashrc</code> so that you won't need to execute it everytime you start a bash.</p>
+<h2>Start private net</h2>
+<p>EOS is a kind of consortium blockchain project. You need to start a miner net to produce block for other clients. You can understand it as a server but it's not exactly.</p>
+<p>All of your test operations will be collected and produced by this net.</p>
+<p>ref: https://github.com/EOSIO/eos/wiki/Tutorial-Getting-Started-With-Contracts</p>
+<p><strong>NOTE:</strong> To print contract's output to console by default add:<br>
+<code>--contracts-console</code><br>
+ref: https://medium.com/coinmonks/the-ultimate-end-to-end-eos-dapp-development-tutorial-part-1-2f99c512086c</p>
+<pre><code class="language-bash">$ nodeos -e -p eosio --plugin eosio::chain_api_plugin --plugin eosio::history_api_plugin --contracts-console
+</code></pre>
+<p>You should see the following output:<br>
+<img alt="" src="/blog/images/2018/05/WX20180530-172602.png"><br>
+As you can see, it start to produce block for every 0.5s.</p>
+<h4>pause nodeos</h4>
+<p><code>ctrl + z</code> to drag it into background and pause, <code>fg</code> to bring it front and resume producing blocks.<br>
+<code>ctrl + c</code> is not recommended, you may suffer errors and have to delete all the blocks to restart it. check the next post for details.</p>
+<h4>about restarting nodeos</h4>
+<p>If you happened <code>ctrl + c</code> and encountered an exception when restarting nodeos like this:</p>
+<pre><code class="language-bash">669409ms thread-0   producer_plugin.cpp:652       start_block          ] Not producing block because the irreversible block is too old [age:12s, max:0s]
+669411ms thread-0   producer_plugin.cpp:526       plugin_startup       ] producer plugin:  plugin_startup() end
+</code></pre>
+<p>This means the nodeos net is probably down for a relative long time, longer than the max value in configuration. </p>
+<p><strong>The recommended way</strong> to fix it is to modify the config file to resume it.</p>
+<p>The config file stays at <code>~/.local/share/eosio/nodeos/config/config.ini</code> in Ubuntu by default.</p>
+<p>On line 102:</p>
+<pre><code class="language-bash">max-irreversible-block-age = 1800
+</code></pre>
+<p>change this to a very large number <code>99999999</code>.</p>
+<p>Save it then restart the nodeos, it should work now.</p>
+<p><strong>Another way</strong> is to delete all blocks then restart it from fresh new, which means you need to redo all the operations except for those only affect local wallet.</p>
+<p>Delete the blocks and states folder:</p>
+<pre><code class="language-bash">mv ~/.local/share/eosio/nodeos/data /tmp
+</code></pre>
+<p>Then restart the nodeos.</p>
+<p><strong>Or</strong>, you could try first use <code>--delete-all-blocks</code>, then restart it with <code>--replay-blockchain</code> flag. But this is not recommended. ref: https://github.com/EOSIO/eos/issues/3047</p>
+<h2>Create a wallet</h2>
+<p>A wallet is like a client where it stores and manages your private/public key. It's the only thing you need to connect to a EOS network. Actually, it's true to almost any blockchain network.</p>
+<p><em>This step only affects local wallet.</em></p>
+<pre><code class="language-bash">$ cleos wallet create
+&quot;/home/ubuntu/eos/build/programs/keosd/keosd&quot; launched
+Creating wallet: default
+Save password to use in the future to unlock this wallet.
+Without password imported keys will not be retrievable.
+&quot;*****************************************************&quot;
+</code></pre>
+<p>Do save the password somewhere otherwise you'll lose control over the wallet.</p>
+<p>The wallet is being managed by the local <code>nodeos</code> net.</p>
+<p>For security purpose, the wallet is locked by default, which means you have to unlock it every time you restart the nodeos net.</p>
+<p>To unlock/lock the wallet:<br>
+<em>This step only affects local wallet.</em></p>
+<pre><code class="language-bash">$ cleos wallet unlock
+$ cleos wallet lock
+</code></pre>
+<p>In the real world, it's highly recommended that you keep the wallet locked for the most of time.<br>
+But for our test purpose, you need to keep it unlocked to do operations.</p>
+<p>If you see an error when trying to unlock your wallet saying that it's already unlocked, you'll notice that I forgot to say your wallet is unlocked by default when you create it. And yes it was intended, lol.</p>
+<h2>End</h2>
+<p>So much for this part, see you in the next post.</p>
+<p>peace.</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

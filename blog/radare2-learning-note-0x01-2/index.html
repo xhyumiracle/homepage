@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radare2 Learning Note (0x01) &middot; M1r4c13</title>
+<meta name="description" content="Radare2 Learning Note (0x01) -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Radare2 Learning Note (0x01)</h1>
+<p class="meta"><span class="mono meta-date">2017.01.11</span><span class="tags"><span class="chip mono">radare2</span></span></p>
+<div class="post-body"><h3>0x00 Introduction</h3>
+<p>Radare2 is a powerful reverse engineering tool for free. If you have a Kali OS, you can use it by default. But take care, the r2 version on kali might be 0.9.9, better to use versions newer than 1.2.0. You can check the version by <code>$ r2 -v</code>. 0.9.9 sometimes cannot reverse the code correctly when comparing to 1.2.0.</p>
+<h3>0x01 Installation</h3>
+<p>Recomend installing from <a href="https://github.com/radare/radare2&quot; target=&quot;_blank">radare2's git repo</a></p>
+<h3>0x02 Get Started</h3>
+<p><code>$ r2 &lt;filename&gt;</code> to open a binary file with radare2. Almost all instructions of r2 are reasonable and easy enough to remember and use.</p>
+<p>You can type '?' to get help info.</p>
+<p>Typical instructions are <code>aa/aaa/aaaa</code>, <code>pdf</code>, <code>i</code>, <code>q</code>, etc.</p>
+<h3>0x03 Powerful Features 4 Beginners</h3>
+<p><code>V</code> allow you to enter visual mode and analyse the code just like in IDA Pro.</p>
+<p><code>$ r2 -c=H &lt;filename&gt;</code> is an amazing feature allowing you to analyse code in web pages instead of cmd lines, this is useful especially for beginners who do not familiar with cmd lines.</p>
+<p>Ok, I'm still learning. I'll update my blog when I learned more.</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

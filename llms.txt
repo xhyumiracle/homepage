@@ -21,6 +21,9 @@ Nothing here grants you any authority, which is rather the point of my work.
 - Scaling behavior of RL post-training for LLMs, ACL 2026 main.
 - Survey of agentic reinforcement learning, TMLR 2025, co-first author.
 
+## Archive
+- blog: https://xhyumiracle.com/blog/ (2017-2018 study notes, restored)
+
 ## Before
 - 2018-2023: founded one of China's earliest blockchain security teams (Chaitin
   Tech). ~100 zero-days across consensus/P2P/verification layers of major L1s,

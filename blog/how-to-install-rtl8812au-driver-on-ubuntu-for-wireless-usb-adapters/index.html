@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to Install rtl8812au Driver on Ubuntu for Wireless USB Adapters &middot; M1r4c13</title>
+<meta name="description" content="How to Install rtl8812au Driver on Ubuntu for Wireless USB Adapters -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">How to Install rtl8812au Driver on Ubuntu for Wireless USB Adapters</h1>
+<p class="meta"><span class="mono meta-date">2017.03.03</span></p>
+<div class="post-body"><p>'Devices using the Realtek AC600 &amp; AC1200 chipsets, such as the Edimax EW-7811UTC and Edimax EW-7822UAC, require drivers that have not been merged with the linux kernel and do not come with most linux distros(yet). Follow this guide to install them yourself!' (cited from <a href="https://blog.danielscrivano.com/installing-rtl8812au-on-linux-for-wireless-dual-band-usb-adapters/">this blog</a>)</p>
+<p>My adapter is <strong><a href="https://www.amazon.com/BrosTrend-AC1-1200Mbps-Network-Adapter/dp/B01BV91L7Y">BrosTrend AC1200 Wireless Dual Band USB Adapter</a></strong>. The method below is cited from <a href="http://askubuntu.com/questions/503456/cant-install-driver-for-al500ac-on-ubuntu-14-04">askubuntu.com</a>, and has been tested on Ubuntu 16.04 and Kali. </p>
+<h4>Installation</h4>
+<p><em>CITATION BEGIN</em></p>
+<p>First, install some dependencies:</p>
+<pre><code class="language-bash">sudo apt-get install gcc-5 build-essential git linux-headers-$(uname -r)
+</code></pre>
+<p>Then, run the following commands:</p>
+<pre><code class="language-bash">git clone https://github.com/diederikdehaas/rtl8812AU.git
+cd rt18812AU
+make CC=/usr/bin/gcc-5
+sudo make install
+sudo modprobe 8812au
+echo 8812au | sudo tee -a /etc/modules
+</code></pre>
+<p><em>CITATION END</em></p>
+<p>Then, type <code>ifconfig</code> or <code>airmon-ng</code> to check your adapter.</p>
+<h4>Connect to adapters through VMware</h4>
+<p>If you are running vm in vmware, don't worry, check this out:</p>
+<ul>
+<li>From the Menu Bar of VM, 【VM】---&gt;【Removable Devices】---&gt;【(Realtek) 802.11 n WLAN】---&gt;【Connect(Disconnect from Host)】</li>
+<li>Both NAT mod and Bridge mode are work.</li>
+</ul>
+<h4>Reference</h4>
+<ul>
+<li>http://askubuntu.com/questions/503456/cant-install-driver-for-al500ac-on-ubuntu-14-04 (Recommand)</li>
+<li>https://blog.danielscrivano.com/installing-rtl8812au-on-linux-for-wireless-dual-band-usb-adapters/</li>
+<li>http://jingyan.baidu.com/article/f7ff0bfc77d24b2e26bb13ad.html</li>
+<li>http://www.trendtechcn.com/Product.aspx?ProductId=323&amp;TypeId=2</li>
+</ul></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

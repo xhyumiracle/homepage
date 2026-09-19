@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bash Color &amp; Prompt String &middot; M1r4c13</title>
+<meta name="description" content="Bash Color &amp; Prompt String -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Bash Color &amp; Prompt String</h1>
+<p class="meta"><span class="mono meta-date">2017.04.23</span></p>
+<div class="post-body"><h4>Bash Color</h4>
+<p>In bash, strings can be print with different formats including different front or background colors, blink, bold or hide etc.</p>
+<p>Basically you just prepend some format string start with escape character, say &lt;esc&gt; followed by '[', and append a 'm', then you are good to go. (”&lt;esc&gt;[FormatCodem”)</p>
+<h5>example</h5>
+<pre><code class="language-bash">echo -e &quot;\033[31mHello\e[0m World&quot;
+</code></pre>
+<p><code>\033[</code> act as escape characters, then '31' means red, and end with an 'm', then followed by a string 'Hello'. So 'Hello' would be printed in red.<br>
+Then '\e[' represents escape characters, then '0m' means reset all formats. So 'World' would be printed in white.</p>
+<h5>escape character</h5>
+<ul>
+<li>\e</li>
+<li>\033</li>
+<li>\x1B</li>
+</ul>
+<p>For further info, please check this out:<br>
+<a href="http://misc.flogisoft.com/bash/tip_colors_and_formatting">[bash tips - colors and formatting]</a></p>
+<h5>Prompt String</h5>
+<p><img alt="" src="/blog/images/2017/04/--.PNG"> </p>
+<p>Prompt string is like this one.<br>
+Prompt string is basically some formatted string using the format code talked above.</p>
+<h6>where to put the format string?</h6>
+<p>export it to PS1 environment variables<br>
+So you append following line to ~/.bashrc:</p>
+<pre><code class="language-bash">export PS1='\[\033[00m\]\[\033[01m\][ \[\033[0;34m\]\u@\h\[\033[0;1m\] ]\[\033[0;34m\]\w\n\[\033[0;1m\]$ '
+</code></pre>
+<h6>tricky point</h6>
+<p>Noticed that there always are '[' and ']' surrounding every format string. Technically it's not necessary. <br>
+But the tricky thing is,if you don't use '[ ' and ']' in the new line, say '\n$ ', like the following line, your bash may mess up when you tracing back some history commands.</p>
+<pre><code class="language-bash">export PS1='\[\033[00m\]\[\033[01m\][ \[\033[0;34m\]\u@\h\[\033[0;1m\] ]\[\033[0;34m\]\w\n\033[0;1m$ '
+</code></pre>
+<p><img alt="" src="/blog/images/2017/04/---1.PNG"> </p>
+<p>so like when I press up up down, the first 5 characters of 'cd practise' would remain there and the start position of new command kind of messed up.</p>
+<p>Thus, you need to use '[' and ']' to surround then so that to declare things between are format strings.</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

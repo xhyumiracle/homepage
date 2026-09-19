@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radare2 Learning Note (0x02) &middot; M1r4c13</title>
+<meta name="description" content="Radare2 Learning Note (0x02) -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Radare2 Learning Note (0x02)</h1>
+<p class="meta"><span class="mono meta-date">2017.01.12</span><span class="tags"><span class="chip mono">radare2</span></span></p>
+<div class="post-body"><h3>0x00 Tricks</h3>
+<p>If you happened to meet with a sentence like <em>'I accidentally the kernel with radare2.'</em> or <em>'Everytime you run radare2, a random file is removed :)'</em>, don't be scared don't be serious, is just a joke (hopefully). There is a file, 'fortunes.fun', under <a href="https://github.com/radare/radare2/blob/master/doc/fortunes.fun&quot; target=&quot;_blank">radare2/doc</a>. Every time r2 is run, a random line of them will output to the screen. So just relax and enjoy the excellent experience of REing with r2.</p>
+<h3>0x01 Useful Instructions</h3>
+<p>You can type <code>&lt;instruction&gt;?</code> to get help info, like <code>p?</code> <code>pd?</code> <code>pdf?</code>.<br>
+Here comes some most often used instructions when re a bin file.</p>
+<ul>
+<li>
+<p><code>aaa</code> - analyse the program, only after you analyse some parts of the program (like functions), can you output the result of them (say, afl to output function list)</p>
+</li>
+<li>
+<p><code>afl</code> - '<strong>a</strong>nalyse <strong>f</strong>unction <strong>l</strong>list', this will list useful functions in the program as well as their flag names and offset addresses. Like this:</p>
+</li>
+</ul>
+<p><img alt="" src="/blog/images/2017/01/--.PNG"> </p>
+<ul>
+<li>
+<p><code>s sym.main</code> - set current address to the start of sym.main(), then you can <code>pdf</code> to disassemble it.</p>
+</li>
+<li>
+<p><code>pD 60@sym.shellcode</code> - disassemble and print the first 60 bytes start from the sym.shellcode's address.</p>
+</li>
+<li>
+<p><code>pd@sym.main</code> - directly disassemble and print the first n bytes start from the sym.main's address, n means your current block size.</p>
+</li>
+<li>
+<p><code>b</code> - display current block size.</p>
+</li>
+</ul>
+<h3>0x02 Normal Usage and Order</h3>
+<p>Normally, when you got a binary going to be REed, <br>
+first take a glance at its <strong>file info</strong> and try to <strong>run it</strong> (if cannot run, try <em>chmod</em>). </p>
+<p>Then open it with r2.<br>
+First use <code>i</code> to gether some overall info.<br>
+Then <code>aaa</code> to analyse it. <br>
+Then <code>afl</code> to look at how many functions are there in the program. </p>
+<p>Then you can <code>s sym.main</code>, or just <code>s main</code> for short, to jump to the main funciton, <br>
+followed by <code>pdf</code> to see if how does it work. </p>
+<p>If you find something interested, just use <code>s</code> to jump to it and <code>pd or pD</code> to print the disassembling result.</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

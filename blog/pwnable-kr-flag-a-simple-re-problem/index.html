@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnable.kr - flag &middot; M1r4c13</title>
+<meta name="description" content="Pwnable.kr - flag -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnable.kr - flag</h1>
+<p class="meta"><span class="mono meta-date">2017.01.12</span><span class="tags"><span class="chip mono">pwnable.kr</span><span class="chip mono">ctf</span></span></p>
+<div class="post-body"><h3>0x00 Overview</h3>
+<p>A 'simple' RE problem</p>
+<h5>Game URL</h5>
+<p><a href="http://pwnable.kr/play.php&quot; target=&quot;_blank">http://pwnable.kr/play.php</a> then click the <strong>flag</strong></p>
+<h5>Main Point</h5>
+<ul>
+<li>The game provide only a <a href="http://pwnable.kr/bin/flag">binary file</a> and a one line cule: </li>
+<li><em>"Papa brought me a packed present! let's open it."</em>.</li>
+<li>You need to find a flag from the bin file.</li>
+</ul>
+<h3>0x01 Things Learned from the Solution</h3>
+<h3>(Little leak about the solution)</h3>
+<h5>$ file &lt;filename&gt;</h5>
+<ul>
+<li><code>$ file flag</code> will print the information of the binary file<br>
+<img alt="" src="/blog/images/2017/01/---1.PNG"> <br>
+As you can see, this file is stripped, means it might be compressed by some packing tools.</li>
+</ul>
+<h5>$ strings &lt;filename&gt;</h5>
+<ul>
+<li><code>$ strings flag</code> will search and print all the strings inside the binary file.</li>
+<li><code>$ strings -n 10 flag</code> prints strings containing at least 10 bytes.</li>
+</ul>
+<h5>$ less</h5>
+<ul>
+<li><code>$ strings flag | less</code> will open the result within <em>less</em>, which allow you to view the result with vim cmd.</li>
+</ul>
+<h3>0x02 Things Learned from the solution</h3>
+<h3>(Heavy leak about the solution)</h3>
+<h5>Packer tool</h5>
+<p>To avoid leak too much info about the solution to someone who do not want to know, I didn't use the upx as the subtitle, but this game uses upx to pack and unpack the binary. This could be deduced from the result of <code>$ strings flag</code> if you've tried.</p>
+<h5>r2 and try</h5>
+<p>After unpacked the binary with upx, you can r2 it and the main function will be avaliable which is not before the unpacking.</p>
+<p>In the main function, you should be able to recognize the malloc() as well as the word <em>flag</em>:<br>
+<img alt="" src="/blog/images/2017/01/---2.PNG"> <br>
+You might have already see the flag sentence thanks to the word <em>'UPX'</em>. So you back to the bash and type:<br>
+<code>$ strings flag | grep -i upx</code></p>
+<p><img alt="" src="/blog/images/2017/01/---3.PNG"> </p>
+<p>That's it, you know this is a flag because.. it really looks like a flag.</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

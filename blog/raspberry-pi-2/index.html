@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Raspberry Pi] - retropie psp settings &middot; M1r4c13</title>
+<meta name="description" content="[Raspberry Pi] - retropie psp settings -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">[Raspberry Pi] - retropie psp settings</h1>
+<p class="meta"><span class="mono meta-date">2017.08.22</span><span class="tags"><span class="chip mono">raspberry pi</span><span class="chip mono">have fun</span></span></p>
+<div class="post-body"><p>Months ago, I bought a raspberry pi 3 model B from Amazon, and then, ...then, a whole summer passed and I'm still thinking about to make more projects with it. :D</p>
+<p>Alright, today let's focus on the psp settings of retropie.</p>
+<p>As you may all know, retropie is one of the best OS based on rpi which could turn your $35 raspberry pi into a king of game consoles. With retropie setted up, you can play Battle City, Raiden, Metal Slug, King of Fight, Super Mario, Kingdom Hearts and any other games on a plenty of platforms like NeoGeo, Nintendo, and even Sony PSP. </p>
+<p>Almost all the games could run fluently on your rpi, if not, poke around the settings and you will be good to go.</p>
+<p>Comparing to others, the configuration of PSP emulation is the most difficult and the most worthy one that you should play around. And it confused many people. I've been tweaking those parameters for couples of weeks and finally, I found a combination to make most of the games I have running nearly perfectly.</p>
+<p>I didn't test many games, but I've got</p>
+<ul>
+<li>Dragon Ball Z - Shin Budokai (USA)</li>
+<li>Kingdom Hearts - Birth by Sleep (USA)</li>
+<li>Bleach Soul Carnival (JPN)</li>
+</ul>
+<p>Running perfectly on my retropie.</p>
+<p>But with these games:</p>
+<ul>
+<li>Little Big Planet</li>
+<li>Ridge Racer 2 (EUR)</li>
+<li>Naruto Shippuden Ultimate Ninja Impact (USA)</li>
+<li>FIFA 14</li>
+<li>Assassin's Creed - Bloodliness (USA)</li>
+</ul>
+<p>I still have trouble to run them. Among which, Assassin's Creed can run fluently but there are many vertical grey bars on the screen looks like the screen is broken into 6 parts. I believe it is due to the broken of .iso file rather than the settings.</p>
+<p>For the Ridge Racer, the screen is always dark, looks like the global light sources of the game weren't rendered.</p>
+<p>For Little Big Planet, it runs fluently but the layers of items seems disordered, so some backgroud items is blocking the whole screen and makes it unplayable.</p>
+<p>For FIFA and Naruto, it might be because the amount of complicated 3d models which makes the game stuck.</p>
+<p>My settings might not be the perfect solution, but the effect of those playable games are very promising, so I hope my settings could help you.</p>
+<p>So I'm gonna share my configurations for people who need.</p>
+<h2>PPSSPP</h2>
+<p>After the installation of your retropie, boot it up. The first thing you want to do with psp is to install the other version of psp emulation(<em>ppsspp</em>) and disable the original one(<em>lr-ppsspp</em>).</p>
+<p>To install <em>ppsspp</em>:</p>
+<pre><code>boot retropie up, navigate to [RetroPie] and hit confirm button.
+</code></pre>
+<p>If this is the very first time you boot it up after the installation, there is no other platform for you to choose, no need to panic. </p>
+<pre><code>Then choose [RetroPie Setup]
+</code></pre>
+<p>Wait for a second, it will shut down the emulation station and pop up a Basic style menu.</p>
+<pre><code>Choose [manage package] -&gt; [install optional package] -&gt; [ppsspp] -&gt; [install from source]
+</code></pre>
+<p>You can also choose [install from binary], they are almost the same. The binary one takes a shorter time to finish the installation while the source one would build up a version that fit your rpi most. I've tried them both and they both work. </p>
+<p>I've seen someone on the Internet said that installing from source would provide a better performance but I really didn't feel it if it does.</p>
+<pre><code>After the installation finished, you keep choose [back] until your retropie emulation station boot again.
+</code></pre>
+<p><strong>Becareful</strong> when you saw your rpi is under sleep mode and you are not sure whether the installation is finished or not: <strong>DO NOT hit confirm button to awake your pi</strong> because otherwise you might choose the install from binary/source again and you need to wait for another installation. Don't ask me why do I know that   T^T</p>
+<pre><code>Open a PSP game, and hit any button when a gray menu appears before the game really starts. Then change the default emulation from lr-ppsspp to ppsspp.
+</code></pre>
+<pre><code>Enter any psp game again, press 'ESC' on the keyboard (or 'host key' on your joystick) to invoke the ppsspp menu.
+</code></pre>
+<p>Now we are talking.</p>
+<h2>Graphics Tab</h2>
+<p>You would see many tabs on the left top corner of the screen. I'll talk about them one by one.</p>
+<h6>Rendering mode</h6>
+<pre><code>Backend = OpenGL (default)
+Mode = Skip buffer effects (big impact)
+Simulate block transfer effects = on (not much impact)
+</code></pre>
+<h6>Framerate control</h6>
+<pre><code>Frameskipping = 1 (big impact)
+Auto frameskip = off (if you turn this on, Mode will change to Buffered rendering automatically)
+Prevent FPS from exceeding 60 = on (important)
+Alternative speed = Unlimited (default)
+</code></pre>
+<h6>Performance</h6>
+<pre><code>Hardware transform = on
+Software skinning = on
+Vertex cache = on
+Lazy texture caching = on
+Retain changed textures = off
+Disable slower effects = on (important but you can play with it, some game will crash completely if you turn off this option)
+Spline/Bezier curves quality = Low (Depends of games)
+</code></pre>
+<h6>Texture scaling</h6>
+<pre><code>Upscale level = off
+Upscale type = xBRZ
+Deposterize = off
+</code></pre>
+<h6>Texture filtering</h6>
+<pre><code>Anisotropic filtering = off (Medium impact)
+Texture filtering = Auto
+Screen scaling filter = Linear (Not much impact)
+</code></pre>
+<h6>Hack settings</h6>
+<pre><code>Timer hack = on
+Disable stencil test = off
+</code></pre>
+<p>Let's talk about it a little bit.<br>
+The most impact ones are Mode and Frameskipping settings, for 3D games, if you turn the Mode to Buffered rendering, the resolution would be poorer and the speed would be slower at the mean time. But if you are playing a game with many 2D items, even like little big planet, some items might display in the wrong way if you choose different Mode. (I don't know the right configuration for little big planet, I've given up...)</p>
+<p>About Frameskipping. It works as literally, like, skip some frames to boot the game speed. But if it skips too many frames, the game will act like a static movie or a game.gif, the best value for my pi is 1.</p>
+<h2>Audio</h2>
+<h6>Audio</h6>
+<pre><code>Enable sound = on (of cause)
+Audio latency = High (important)
+Audio sync = off
+</code></pre>
+<h6>Audio hacks</h6>
+<pre><code>Sound speed hack = on
+</code></pre>
+<h2>Networking</h2>
+<pre><code>Enable networking/WLAN = off
+</code></pre>
+<h2>System</h2>
+<h6>Emulation</h6>
+<pre><code>Fast memory = on
+Multithreaded = off
+I/O timing method = Fast
+Force real clock sync = off
+Change emulated PSP's CPU clock = Auto
+Rewind snapshot frequency = off
+Memory Stick inserted = on
+</code></pre>
+<h2>Inside Games</h2>
+<p>Look, this is not a tab in the settings, don't panic I don't have it ether.</p>
+<p>After these settings, some games still suck. What you can do is to find the <code>install game</code> or <code>install game data</code> option. It will move crucial game data from .iso file to your rpi and it will <strong>signaficantly</strong> boot this game. For some game it will take several minitues for the installed data to come effected after the installation.</p>
+<p>Another thing you can do is to <code>turn off the auto save feature</code></p>
+<h2>Overclock</h2>
+<p>If you want better performance, go and overclock your pi!</p>
+<p>Check out this link: this is really a good overclock tutorial: https://www.youtube.com/watch?v=FTp3mfpCc2A</p>
+<p>I followed this video and overclocked my pi from 1.2MHz to 1.4MHz, faster and safe enough, I can sense it. :D</p>
+<p>That's it. If you have any question, leave a comment.</p>
+<p>Thank you! Enjoy your retropie psp!</p>
+<h2>Reference</h2>
+<p>https://blog.petrockblock.com/forums/topic/ppsspp-slow-try-these-settings/</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

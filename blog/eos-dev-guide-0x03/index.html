@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EOS Dev Guide 0x03 &middot; M1r4c13</title>
+<meta name="description" content="EOS Dev Guide 0x03 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">EOS Dev Guide 0x03</h1>
+<p class="meta"><span class="mono meta-date">2018.05.31</span></p>
+<div class="post-body"><h2>pre-requisite</h2>
+<p>This part assumes you've created at least one account.<br>
+If not, please check the previous post <a href="http://xhyumiracle.com/eos-dev-guide-0x02/">EOS Dev Guide 0x02</a>.</p>
+<h2>Compile contract</h2>
+<p>contract needs to be first compiled to .wasm format as a bin file.<br>
+then generate .abi file to serve as an function interface index file.</p>
+<h4>create .cpp file</h4>
+<p>First, cd to any place and make a new folder to place the contract code.</p>
+<pre><code class="language-bash">$ mkdir -p ~/eos-dev/helloworld
+$ cd ~/eos-dev/helloworld
+$ vim helloworld.cpp
+</code></pre>
+<p>Then place the following code, save and quite(:wq)</p>
+<pre><code class="language-cpp">#include &lt;eosiolib/eosio.hpp&gt;
+#include &lt;eosiolib/print.hpp&gt;
+
+using namespace eosio;
+
+class helloworld : public eosio::contract {
+  public:
+      using contract::contract;
+
+      void hello(account_name user) {
+         print(&quot;Hello world! &quot;, name{user});
+      }
+};
+
+EOSIO_ABI(helloworld, (hello))
+</code></pre>
+<h4>compile to .wasm and .wast</h4>
+<pre><code class="language-bash">$ eosiocpp -o helloworld.wast helloworld.cpp
+</code></pre>
+<p>This will generate <code>.wast</code> and <code>.wasm</code> at the same time. <br>
+<code>.wast</code> file is the text version of <code>.wasm</code></p>
+<p><strong>NOTE:</strong> if you encountered exceptions saying something like <em>couldn't find file 'eosiolib/eosio.hpp'</em>, then try <code>sudo eosiocpp -o ....</code></p>
+<h4>generate .abi file</h4>
+<pre><code class="language-bash">$ eosiocpp -g helloworld.abi helloworld.cpp
+</code></pre>
+<p>alright, we've finished the preparation work.</p>
+<h2>Publish contract</h2>
+<p>In EOS, contract needs to be attached to an account, functions would become <code>actions</code> of that account.</p>
+<p>For our test purpose, we are going to publish the helloworld contract on test.hello account and use it.</p>
+<p>First, cd to <code>helloworld/../</code>, which is the upper dir of our contract folder, in this example, it would be <code>/eos-dev</code></p>
+<pre><code class="language-bash">$ cd /path/to/upper/dir/of/contract/folder
+$ cleos set contract test.hello helloworld
+Reading WAST/WASM from helloworld/helloworld.wasm...
+Using already assembled WASM...
+Publishing contract...
+executed transaction: 6976f392d97728841a28ce7fb0e39734dd4ae58f9da5872cf9eeb3d2ddedd1f7  1808 bytes  569 us
+#         eosio &lt;= eosio::setcode               {&quot;account&quot;:&quot;test.hello&quot;,&quot;vmtype&quot;:0,&quot;vmversion&quot;:0,&quot;code&quot;:&quot;0061736d01000000013b0c60027f7e006000017e600...
+#         eosio &lt;= eosio::setabi                {&quot;account&quot;:&quot;test.hello&quot;,&quot;abi&quot;:&quot;0e656f73696f3a3a6162692f312e3000010568656c6c6f00010475736572046e616d6...
+warning: transaction executed locally, but may not be confirmed by the network yet
+</code></pre>
+<h2>Call contract function</h2>
+<pre><code class="language-bash">$ cleos push action test.hello hello '[&quot;test.hello&quot;]' -p test.hello
+executed transaction: a0d226570d79330ea1e837e4c9da30080e92224cca83fbe564307bb7e873ac26  104 bytes  491 us
+#    test.hello &lt;= test.hello::hello            {&quot;user&quot;:&quot;test.hello&quot;}
+&gt;&gt; Hello world! test.hello
+warning: transaction executed locally, but may not be confirmed by the network yet
+</code></pre>
+<p><strong>NOTE:</strong> if you didn't get any output, check if you used <code>--contracts-console</code> flag when starting nodeos. (<a href="http://xhyumiracle.com/eos-dev-guide-0x01">ref</a>)</p>
+<p>And you'll see the same output in the <code>nodeos</code> output.</p>
+<p><img alt="" src="/blog/images/2018/05/eos.helloworld.1.png"></p>
+<pre><code class="language-bash">$ cleos push action test.hello hello '[&quot;test.hello&quot;]' -p test.hello
+executed transaction: a0d226570d79330ea1e837e4c9da30080e92224cca83fbe564307bb7e873ac26  104 bytes  491 us
+#    test.hello &lt;= test.hello::hello            {&quot;user&quot;:&quot;test.hello&quot;}
+&gt;&gt; Hello world! test.hello
+warning: transaction executed locally, but may not be confirmed by the network yet
+</code></pre>
+<h2>End</h2>
+<p>Congrates! We've deployed and executed an EOS contract!<br>
+There are more contract examples under eos/build/contracts, the source code is under eos/contracts.</p>
+<p>Alright, so much for this post, hope you enjoy.</p>
+<p>peace.</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

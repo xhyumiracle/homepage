@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radare2 Learning Note (0x03) &middot; M1r4c13</title>
+<meta name="description" content="Radare2 Learning Note (0x03) -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Radare2 Learning Note (0x03)</h1>
+<p class="meta"><span class="mono meta-date">2017.01.24</span><span class="tags"><span class="chip mono">radare2</span></span></p>
+<div class="post-body"><h3>0x00 Debug mode</h3>
+<p><a href="https://radare.gitbooks.io/radare2book/content/introduction/basic_debugger_session.html">(ref: Radare2 Book)</a></p>
+<p>We can use <code>$ r2 -d &lt;binary&gt;</code> to open r2 with debug mode.</p>
+<p>there are several commands in debug mode:</p>
+<pre><code>&gt; d?          ; get help on debugger commands
+&gt; ds 3        ; step 3 times
+&gt; db 0x8048920  ; setup a breakpoint
+&gt; db -0x8048920 ; remove a breakpoint
+&gt; dc          ; continue process execution
+&gt; dcs        ; continue until syscall
+&gt; dd            ; manipulate file descriptors
+&gt; dm          ; show process maps
+&gt; dmp A S rwx  ; change page at A with size S protection permissions
+&gt; dr eax=33 ; set register value. eax = 33
+</code></pre>
+<p>Daily used cmds:</p>
+<ul>
+<li><code>db</code>: setup a breakpoint</li>
+<li><code>db 0x8048920</code> setup a breakpoint at 0x8048920 (disassembling code address)</li>
+<li><code>db functionname</code> setup a breakpoint at the start of functionname()</li>
+<li><code>db -0x8048920</code> remove a breakpoint at 0x8048920.</li>
+<li><code>dc</code>: Start or continue process execution until breakpoint or end.</li>
+<li><code>dr</code>: display registers</li>
+<li><code>dr</code>: display all the registers' values</li>
+<li><code>dr eax</code>: display $eax's value</li>
+<li><code>dr eax=33</code>: set register value. eax = 33</li>
+<li><code>print &amp;i</code>: print the address of variable i.</li>
+</ul>
+<h3>0x01 rabin2</h3>
+<p>I'm just a beginner of radare, so currently I only know how rabin can print the GOT table of the program, which is used in <a href="http://xhyumiracle.com/pwnable-kr-passcode/">Pwnable.kr - passcode</a>.</p>
+<pre><code class="language-bash">random@ubuntu:~$ rabin2 -R random
+[Relocations]
+vaddr=0x00600fe0 paddr=0x00000fe0 type=SET_64 __gmon_start__
+vaddr=0x00601000 paddr=0x00001000 type=SET_64 puts
+vaddr=0x00601008 paddr=0x00001008 type=SET_64 system
+vaddr=0x00601010 paddr=0x00001010 type=SET_64 __libc_start_main
+vaddr=0x00601018 paddr=0x00001018 type=SET_64 __isoc99_scanf
+vaddr=0x00601020 paddr=0x00001020 type=SET_64 rand
+
+6 relocations
+</code></pre>
+<p>the vaddr is the function's GOT address in this program.<br>
+GOT table is on the stack, which can be overflowed or modified by other means.</p>
+<p>When the program needs to call a outlined function, like rand() in this case, it will search in the GOT table for rand()'s actual address. <br>
+In this case, the actual address lays at vaddr=0x00601020, so the program get the value from 0x00601020, then jump to that address and execute.</p>
+<p>So if we modify the value of 0x00601020 and change it to the start address of shellcode, the program will jump to shellcode and execute when calling rand().</p>
+<p>That's it. Keep learning</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

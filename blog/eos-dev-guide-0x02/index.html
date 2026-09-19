@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EOS Dev Guide 0x02 &middot; M1r4c13</title>
+<meta name="description" content="EOS Dev Guide 0x02 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">EOS Dev Guide 0x02</h1>
+<p class="meta"><span class="mono meta-date">2018.05.30</span></p>
+<div class="post-body"><h2>pre-requisite</h2>
+<p>This part assumes you've booted up the private net(nodeos) and had it kept producing blocks.<br>
+If not, please check the previous post: <a href="http://xhyumiracle.com/eos-dev-guide-0x01/">EOS Dev Guide 0x01</a>.</p>
+<h2>Deploy eosio.bios contract</h2>
+<p><em>This step needs nodeos to be running and producing blocks.</em></p>
+<p>We need to deploy eosio.bios to act as a system contract. </p>
+<p>If you don't deploy this contract, you'll get error when you create accounts in following procedures.</p>
+<p>According to official tutorial, it 'enables you to have direct control over the resource allocation of other accounts and to access other privileged API calls. In a public blockchain, this contract will manage the staking and unstaking of tokens to reserve bandwidth for CPU and network activity, and memory for contracts.'</p>
+<p>The contract sits under eos/build/contracts/eosio.bios.</p>
+<pre><code class="language-bash">$ cd /path/to/eos/root/dir
+$ cleos set contract eosio build/contracts/eosio.bios -p eosio
+</code></pre>
+<p><code>-p eosio</code> means tell cleos to sign this transaction with the <em>active</em> authority private key of account <code>eosio</code>.</p>
+<p><strong>NOTE:</strong> Remember to have nodeos running and producing blocks, otherwise you'll get this:</p>
+<pre><code class="language-bash">Reading WAST/WASM from build/contracts/eosio.bios/eosio.bios.wasm...
+Using already assembled WASM...
+Publishing contract...
+Failed to connect to nodeos at http://localhost:8888/; is nodeos running?
+</code></pre>
+<h4>about restarting nodeos</h4>
+<p>Please check the previous post: <a href="http://xhyumiracle.com/eos-dev-guide-0x01/">EOS Dev Guide 0x01</a>.</p>
+<h4>result of deploy contract</h4>
+<p>If things went smoothly as it should be, you'll get this output:</p>
+<pre><code class="language-bash">Reading WAST/WASM from build/contracts/eosio.bios/eosio.bios.wasm...
+Using already assembled WASM...
+Publishing contract...
+executed transaction: 5280349864db00d70c41a58ce45b8beba3b98b7fcddf6a5fbc39995a6a6eeece  3712 bytes  4061 us
+#         eosio &lt;= eosio::setcode               {&quot;account&quot;:&quot;eosio&quot;,&quot;vmtype&quot;:0,&quot;vmversion&quot;:0,&quot;code&quot;:&quot;0061736d0100000001621260037f7e7f0060057f7e7e7e7e...
+#         eosio &lt;= eosio::setabi                {&quot;account&quot;:&quot;eosio&quot;,&quot;abi&quot;:&quot;0e656f73696f3a3a6162692f312e30050c6163636f756e745f6e616d65046e616d650f7065...
+</code></pre>
+<p>you'll notice that one of the block produced has one transaction, which is the deploy tx.<br>
+<img alt="" src="/blog/images/2018/05/WechatIMG7.jpeg"></p>
+<h2>Create accounts</h2>
+<p>Every account has two pairs of key to represent <code>active</code> and <code>owner</code> authorities. Each pair contains private key and public key.</p>
+<p>Thus, in the product environment we need to generate two key pairs to support security feature. But for our test purpose, here we use the same for the two authorities:</p>
+<h4>create key pair</h4>
+<p><em>This step does not affect any states.</em></p>
+<pre><code class="language-bash">$ cleos create key
+Private key: 5KUq25eiZHULak7eqne7UQgCE1WABvbVdDJ2NdJdbQ1Bw5bhS1x
+Public key: EOS6U1QS4WEntL4hSnWtUxut77LUULecREFXYem9FxVwAQKoWGX94
+</code></pre>
+<h4>import key pair</h4>
+<p><em>This step only affects local wallet.</em></p>
+<p>use private key here:</p>
+<pre><code class="language-bash">$ cleos wallet import 5KUq25eiZHULak7eqne7UQgCE1WABvbVdDJ2NdJdbQ1Bw5bhS1x
+imported private key for: EOS6U1QS4WEntL4hSnWtUxut77LUULecREFXYem9FxVwAQKoWGX94
+</code></pre>
+<h4>create account</h4>
+<p><em>This step needs nodeos to be running and producing blocks.</em></p>
+<p>use public here, use the same public key twice as the reason we stated above.<br>
+(first is owner public key, then active public key)</p>
+<pre><code class="language-bash">$ cleos create account eosio user EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4 EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4
+executed transaction: 8aedb926cc1ca31642ada8daf4350833c95cbe98b869230f44da76d70f6d6242  364 bytes  1000 cycles
+#         eosio &lt;= eosio::newaccount            {&quot;creator&quot;:&quot;eosio&quot;,&quot;name&quot;:&quot;user&quot;,&quot;owner&quot;:{&quot;threshold&quot;:1,&quot;keys&quot;:[{&quot;key&quot;:&quot;EOS7ijWCBmoXBi3CgtK7DJxentZZ...
+</code></pre>
+<p>We can import another account:</p>
+<pre><code class="language-bash">$ cleos create account eosio tester EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4 EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4
+executed transaction: 414cf0dc7740d22474992779b2416b0eabdbc91522c16521307dd682051af083 366 bytes  1000 cycles
+#         eosio &lt;= eosio::newaccount            {&quot;creator&quot;:&quot;eosio&quot;,&quot;name&quot;:&quot;tester&quot;,&quot;owner&quot;:{&quot;threshold&quot;:1,&quot;keys&quot;:[{&quot;key&quot;:&quot;EOS7ijWCBmoXBi3CgtK7DJxentZZ...
+</code></pre>
+<p>According to <a href="https://github.com/EOSIO/eos/wiki/Tutorial-Getting-Started-With-Contracts#create-two-user-accounts">the EOS official guide</a>, <em>'Because we are using the eosio::history_api_plugin we can query all accounts that are controlled by our key:'</em></p>
+<pre><code class="language-bash">$ cleos get accounts EOS7ijWCBmoXBi3CgtK7DJxentZZeTkeUnaSDvyro9dq7Sd1C3dC4
+{
+  &quot;account_names&quot;: [
+    &quot;tester&quot;,
+    &quot;user&quot;
+  ]
+}
+</code></pre>
+<h4>check user status</h4>
+<pre><code class="language-bash">$ cleos get account user
+</code></pre>
+<h2>End</h2>
+<p>That's it for this post, see you soon.</p>
+<p>patient</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

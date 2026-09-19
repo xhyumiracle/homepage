@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EOS Dev Guide 0x00 &middot; M1r4c13</title>
+<meta name="description" content="EOS Dev Guide 0x00 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">EOS Dev Guide 0x00</h1>
+<p class="meta"><span class="mono meta-date">2018.05.30</span></p>
+<div class="post-body"><p>This guide book will guide you to build your own test net, develop EOS contracts and do other research on it.</p>
+<p>ref: https://github.com/EOSIO/eos/wiki/Tutorial-Getting-Started-With-Contracts</p>
+<h2>pre-requisite</h2>
+<p>before start, make sure you have met the building requirement since it will download some dependences and generate many intermediate files.</p>
+<p>ref:https://github.com/EOSIO/eos/wiki/Local-Environment</p>
+<h4>supported os</h4>
+<p>the automated build script now only support the following os:</p>
+<p>Amazon 2017.09 and higher.<br>
+Centos 7.<br>
+Fedora 25 and higher (Fedora 27 recommended).<br>
+Mint 18.<br>
+Ubuntu 16.04 (Ubuntu 16.10 recommended).<br>
+MacOS Darwin 10.12 and higher (MacOS 10.13.x recommended).</p>
+<h4>memory requirement</h4>
+<p>8GB RAM free required<br>
+20GB Disk free required</p>
+<h2>Build Local Env</h2>
+<pre><code class="language-bash">$ git clone https://github.com/EOSIO/eos
+</code></pre>
+<p>Then cd to the directory, and checkout to a specific version if you want.<br>
+For example, if you want to reproduce the RCE vulnerability reported and fixed on May 29, checkout to this commit:</p>
+<pre><code class="language-bash">$ cd eos
+$ git checkout 4938c6d06e08ed37c05d2de0fd1419200e212c45 
+</code></pre>
+<p>because the fixing commit was ea89dce21d13d41a22b3512a27be97b4be9df755, and 4938c6 was the very last one before the fix.</p>
+<p>Then run the automated build script:</p>
+<pre><code class="language-bash">$ ./eosio_build.sh
+</code></pre>
+<p>Just follow the instructions, and type 1 when it asking whether do you want to install the dependences. All of the dependences are required, so we just let it install.</p>
+<p>If everything went cool, you are supposed to see this:<br>
+<img alt="" src="/blog/images/2018/05/WX20180530-170226.png"></p>
+<p>And there will be a new folder 'build' under 'eos'. You should see some executables under <code>eos/build/programs</code>, like nodeos and cleos.</p>
+<h2>Run the tests</h2>
+<p>As stated in the success message:<br>
+'To verify your installation run the following commands:'</p>
+<pre><code class="language-bash">$ export PATH=${HOME}/opt/mongodb/bin:$PATH
+$ /home/ubuntu/opt/mongodb/bin/mongod -f /home/ubuntu/opt/mongodb/mongod.conf &amp;
+$ cd /home/ubuntu/eos/build; make test
+</code></pre>
+<p>This it, I decided to separate the whole procedure to several short parts so that you can check it at any progress.</p>
+<p>See you in the next post.</p>
+<p>peace</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

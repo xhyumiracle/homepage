@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnable.kr - mistake &middot; M1r4c13</title>
+<meta name="description" content="Pwnable.kr - mistake -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnable.kr - mistake</h1>
+<p class="meta"><span class="mono meta-date">2017.01.29</span><span class="tags"><span class="chip mono">ctf</span><span class="chip mono">pwnable.kr</span></span></p>
+<div class="post-body"><p>Writeup for <em>mistake</em> of <a href="http://pwnable.kr/play.php">pwnable.kr</a>.</p>
+<h3>0x00 Puzzle</h3>
+<pre><code>We all make mistakes, let's move on.
+(don't take this too seriously, no fancy hacking skill is required at all)
+
+This task is based on real event
+Thanks to dhmonkey
+
+hint : operator priority
+
+ssh mistake@pwnable.kr -p2222 (pw:guest)
+</code></pre>
+<h3>0x01 Explore</h3>
+<p><strong>ssh</strong></p>
+<pre><code class="language-bash">ssh mistake@pwnable.kr 2222
+mistake@ubuntu:~$ ls -l
+total 24
+-r-------- 1 mistake_pwn root      51 Jul 29  2014 flag
+-r-sr-x--- 1 mistake_pwn mistake 8934 Aug  1  2014 mistake
+-rw-r--r-- 1 root        root     792 Aug  1  2014 mistake.c
+-r-------- 1 mistake_pwn root      10 Jul 29  2014 password
+</code></pre>
+<p>As usual, the goal is to pwn the binary <em>mistake</em> and let it cat the flag file.</p>
+<p><strong>mistake.c</strong></p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+#include &lt;fcntl.h&gt;
+
+#define PW_LEN 10
+#define XORKEY 1
+
+void xor(char* s, int len){
+    int i;
+    for(i=0; i&lt;len; i++){
+        s[i] ^= XORKEY;
+    }
+}
+
+int main(int argc, char* argv[]){
+
+    int fd;
+    if(fd=open(&quot;/home/mistake/password&quot;,O_RDONLY,0400) &lt; 0){
+        printf(&quot;can't open password %d\n&quot;, fd);
+        return 0;
+    }
+
+    printf(&quot;do not bruteforce...\n&quot;);
+    sleep(time(0)%20);
+
+    char pw_buf[PW_LEN+1];
+    int len;
+    if(!(len=read(fd,pw_buf,PW_LEN) &gt; 0)){
+        printf(&quot;read error\n&quot;);
+        close(fd);
+        return 0;       
+    }
+
+    char pw_buf2[PW_LEN+1];
+    printf(&quot;input password : &quot;);
+    scanf(&quot;%10s&quot;, pw_buf2);
+
+    // xor your input
+    xor(pw_buf2, 10);
+
+    if(!strncmp(pw_buf, pw_buf2, PW_LEN)){
+        printf(&quot;Password OK\n&quot;);
+        system(&quot;/bin/cat flag\n&quot;);
+    }
+    else{
+        printf(&quot;Wrong Password\n&quot;);
+    }
+
+    close(fd);
+    return 0;
+}
+</code></pre>
+<p>It seems that the program:</p>
+<ul>
+<li>
+<p>open the <em>password</em> and read 10 bytes as password.</p>
+</li>
+<li>
+<p>scanf 10 bytes and flip the last bit of every byte.</p>
+</li>
+<li>
+<p>if those two match, cat the flag.</p>
+</li>
+</ul>
+<p><strong>But</strong> there is a hint in the puzzle: <strong>operator priority</strong>.</p>
+<p>So don't be hurry, let's look at the program carefully, until we find the vulnerable part:</p>
+<pre><code class="language-c">if(fd=open(&quot;/home/mistake/password&quot;,O_RDONLY,0400) &lt; 0){
+</code></pre>
+<p>Simplify version of this line: <code>if(fd = open(...) &lt; 0)</code>.</p>
+<p>Notice that this line means to compare the <em>fd</em> and 0, but there is no parenthese ourside the assignment statement. And we should know that <strong>'&lt;' is of higher priority comparing to '='</strong>. </p>
+<p>So this line actually assigns the value of <em>(open(...) &lt; 0)</em> to <em>fd</em>.</p>
+<p>If the "/home/mistake/password" opens correctly, <code>open() &lt; 0</code> always return false, which is 0x00 in c. Then <em>fd</em> will be set to 0;</p>
+<p>So it's actually read 10 bytes password not from "/home/mistake/password" but from <strong>stdin</strong> (which file descriptor = 0, remember?).</p>
+<h3>0x02 Solution</h3>
+<p>We need to run ~/mistake, give 10 bytes to stdin as password, then input 10 bytes to match its flipping check.</p>
+<p>trick: '<strong>-</strong>' means open stdin in linux. It also can be used to keep bash open some times.</p>
+<p>We just try:</p>
+<pre><code class="language-bash">mistake@ubuntu:~$ ./mistake -
+do not bruteforce...
+0000000000
+1111111111
+input password : Password OK
+Mommy, the operator priority always confuses me :(
+</code></pre>
+<p>Be patient and wait for several seconds (there is sleep() inside program), and we are done.</p>
+<p>Done.</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

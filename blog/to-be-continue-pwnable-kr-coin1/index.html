@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnable.kr - coin1 &middot; M1r4c13</title>
+<meta name="description" content="Pwnable.kr - coin1 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnable.kr - coin1</h1>
+<p class="meta"><span class="mono meta-date">2017.01.29</span><span class="tags"><span class="chip mono">ctf</span><span class="chip mono">pwnable.kr</span></span></p>
+<div class="post-body"><p>Writeup for coin1 of <a href="http://pwnable.kr/play.php">pwnable.kr</a></p>
+<h3>0x00 Puzzle</h3>
+<pre><code>Mommy, I wanna play a game!
+(if your network response time is too slow, try nc 0 9007 inside pwnable.kr server)
+
+Running at : nc pwnable.kr 9007
+</code></pre>
+<h3>0x01 Explore</h3>
+<p><strong>nc</strong></p>
+<pre><code class="language-bash">shellshock@ubuntu:~$ nc 0 9007
+
+    ---------------------------------------------------
+    -              Shall we play a game?              -
+    ---------------------------------------------------
+
+    You have given some gold coins in your hand
+    however, there is one counterfeit coin among them
+    counterfeit coin looks exactly same as real coin
+    however, its weight is different from real one
+    real coin weighs 10, counterfeit coin weighes 9
+    help me to find the counterfeit coin with a scale
+    if you find 100 counterfeit coins, you will get reward :)
+    FYI, you have 30 seconds.
+
+    - How to play - 
+    1. you get a number of coins (N) and number of chances (C)
+    2. then you specify a set of index numbers of coins to be weighed
+    3. you get the weight information
+    4. 2~3 repeats C time, then you give the answer
+
+    - Example -
+    [Server] N=4 C=2    # find counterfeit among 4 coins with 2 trial
+    [Client] 0 1        # weigh first and second coin
+    [Server] 20         # scale result : 20
+    [Client] 3          # weigh fourth coin
+    [Server] 10         # scale result : 10
+    [Client] 2          # counterfeit coin is third!
+    [Server] Correct!
+
+    - Ready? starting in 3 sec... -
+
+N=148 C=8
+
+</code></pre>
+<h3>0x02 Solution</h3>
+<p>N &lt; 2 ^ C, so bi-search would work:</p>
+<pre><code class="language-python">import subprocess
+
+def read1stLine():
+  a = ''
+  while len(a)==0 or a[0] != 'N':
+    a=coin.stdout.readline()
+    print &quot;server said:&quot;+a+'end'
+  print 'len-&gt;'+str(len(a))+'&lt;-'
+  print 'hex-&gt;'+(hex(ord(a[0])))+'&lt;-'
+  return a
+
+def parseNC(string):
+  string = string.split(' ')
+  n = int(string[0].split('=')[1])
+  c = int(string[1].split('=')[1])
+  return n,c
+
+def put(st):
+  s = ''
+  for i in st:
+    s += str(i)
+    s += ' '
+  s += '\n'
+  coin.stdin.write(s)
+  print 'put: '+s
+
+def get(noreturn=False):
+  a=''
+  while a == '':
+    a=coin.stdout.readline()
+  print 'get: '+a
+  if not noreturn:
+    return int(a)
+
+def getstr():
+  a=''
+  while a == '':
+    a=coin.stdout.readline()
+  print 'get: '+a
+
+def q(st):
+  put(st)
+  return get()
+
+def game(l,r,c):
+  if r==l+1:
+    return l,c;
+  if q(range(l,l+(r-l)/2))&lt;((r-l)/2*10):
+    return game(l,l+(r-l)/2,c+1)
+  else:
+    return game(l+(r-l)/2,r,c+1)
+coin = subprocess.Popen(&quot;nc 0 9007&quot;.split(' '), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+for rd in range(100):
+  a = read1stLine()
+  n,c = parseNC(a)
+  print 'coin said:' +a+'end'
+  print 'n = '+str(n)+' c = '+str(c)
+
+  res,tc=game(0,n,0)
+  for i in range(c-tc+1):
+    put([res])
+  get(True)
+get(True)
+get(True)
+get(True)
+get(True)
+get(True)
+</code></pre>
+<pre><code>...
+get: Correct! (99)
+
+get: Congrats! get your flag
+
+get: b1NaRy_S34rch1nG_1s_3asy_p3asy
+
+</code></pre>
+<p>Done!</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nginx - location and rewrite rules &middot; M1r4c13</title>
+<meta name="description" content="Nginx - location and rewrite rules -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Nginx - location and rewrite rules</h1>
+<p class="meta"><span class="mono meta-date">2017.01.19</span><span class="draft-flag mono">draft</span></p>
+<div class="post-body"><p>Source: <a href="http://seanlook.com/2015/05/17/nginx-location-rewrite/">Sean's Notes</a></p>
+<h3>0x00 Overview</h3>
+<ul>
+<li>
+<p><em>nginx</em> is on the server side.</p>
+</li>
+<li>
+<p><em>location</em> and <em>rewrite</em> are two functions of nginx configuration.</p>
+</li>
+<li>
+<p><em>location</em> can capture requesting url and do some operations like <em>proxy_pass</em> based on the result.</p>
+</li>
+<li>
+<p><em>rewrite</em> can capture requesting url and modify it to a new url, then send back 301-303 response to client or just silently redirect it on the server and do not notice client.</p>
+</li>
+<li>
+<p><em>location</em> and <em>rewrite</em> are under <em>server</em> section, which means they do not need to match the host name.</p>
+</li>
+<li>
+<p>for example, the requesting full url is http://test.com/this/is/a/url, <em>location</em> and <em>rewrite</em> will only capture '/this/is/a/url'.</p>
+</li>
+</ul>
+<h3>0x01 <em>location</em> matching rule</h3>
+<p>Example:</p>
+<pre><code class="language-python">location  = / {
+  # 精确匹配 / ，主机名后面不能带任何字符串
+  # Competely and only match '/', any extra characters after '/' will fail this rule.
+  [ configuration A ]
+}
+location  / {
+  # 因为所有的地址都以 / 开头，所以这条规则将匹配到所有请求
+  # 但是正则和最长字符串会优先匹配
+  # This rule will match every url since every url starts with a '/'
+  # But the reg exp matching and longest string matching are of higher priority.
+  [ configuration B ]
+}
+location /documents/ {
+  # 匹配任何以 /documents/ 开头的地址，匹配符合以后，还要继续往下搜索
+  # 只有后面的正则表达式没有匹配到时，这一条才会采用这一条
+  # Match url start with '/documents/', but will not stop searching other rules.
+  # This rule is going to work only if no other reg or longer string rule matches.
+  [ configuration C ]
+}
+location ~ /documents/Abc {
+  # 匹配任何以 /documents/Abc 开头的地址，匹配符合以后，还要继续往下搜索
+  # 只有后面的正则表达式没有匹配到时，这一条才会采用这一条
+  # Match url start with '/documents/Abc', but will not stop searching other rules.
+  # This rule is going to work only if no other reg or longer string rule matches.
+  [ configuration CC ]
+}
+location ^~ /images/ {
+  # 匹配任何以 /images/ 开头的地址，匹配符合以后，停止往下搜索正则，采用这一条。
+  # Match url start with '/images/', but will not stop searching other rules.
+  [ configuration D ]
+}
+location ~* \.(gif|jpg|jpeg)$ {
+  # 匹配所有以 gif,jpg或jpeg 结尾的请求
+  # 然而，所有请求 /images/ 下的图片会被 config D 处理，因为 ^~ 到达不了这一条正则
+  [ configuration E ]
+}
+location /images/ {
+  # 字符匹配到 /images/，继续往下，会发现 ^~ 存在
+  [ configuration F ]
+}
+location /images/abc {
+  # 最长字符匹配到 /images/abc，继续往下，会发现 ^~ 存在
+  # F与G的放置顺序是没有关系的
+  [ configuration G ]
+}
+location ~ /images/abc/ {
+  # 只有去掉 config D 才有效：先最长匹配 config G 开头的地址，继续往下搜索，匹配到这一条正则，采用
+    [ configuration H ]
+}
+location ~* /js/.*/\.js
+</code></pre></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hightlight Code Blocks in Ghost - Prism &middot; M1r4c13</title>
+<meta name="description" content="Hightlight Code Blocks in Ghost - Prism -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Hightlight Code Blocks in Ghost - Prism</h1>
+<p class="meta"><span class="mono meta-date">2017.01.24</span><span class="tags"><span class="chip mono">ghost</span></span></p>
+<div class="post-body"><p>Source: <a href="http://prismjs.com/index.html">Prism</a></p>
+<h3>Installation</h3>
+<ul>
+<li>
+<p>Log into admin page of your ghost blog.</p>
+</li>
+<li>
+<p>Click the <strong>Code Injection</strong> on the left.</p>
+</li>
+<li>
+<p>Copy this line to <strong>Blog Header</strong>:</p>
+</li>
+</ul>
+<pre><code class="language-javascript">&lt;link href=&quot;https://cdnjs.cloudflare.com/ajax/libs/prism/0.0.1/prism.min.css&quot; rel=&quot;stylesheet&quot; /&gt;
+</code></pre>
+<ul>
+<li>Copy this line to <strong>Blog Footer</strong>:</li>
+</ul>
+<pre><code class="language-javascript">&lt;script type=&quot;text/javascript&quot; src=&quot;https://cdnjs.cloudflare.com/ajax/libs/prism/0.0.1/prism.min.js&quot; &gt;&lt;/script&gt;
+</code></pre>
+<p>Done.</p>
+<h3>Usage Examples</h3>
+<p>In your markdown style post:</p>
+<pre><code>1 ```c
+2 #include &lt;stdio.h&gt;
+3 int main() {
+4     printf(&quot;Hello Prism!&quot;);
+5 }
+6 ```
+</code></pre>
+<pre><code>1 ```python
+2 print 'Hello Prism!'
+3 ```
+</code></pre>
+<p>Save and publish it, you will see this effect:</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+int main() {
+    printf(&quot;Hello Prism!&quot;);
+}
+</code></pre>
+<pre><code class="language-python">for i in range(10):
+  print 'Hello Prism'
+</code></pre>
+<p>Prism also supports many many other languages like bash, c++, perl and even vim.</p>
+<h3>Supported Languages &amp; Alias</h3>
+<p>(ref: http://prismjs.com/index.html#languages-list)</p>
+<p>This is the list of all 120 languages currently supported by Prism, with their corresponding alias, to use in place of xxxx in the language-xxxx class:</p>
+<p>Markup - markup<br>
+<strong>CSS - css</strong> <br/><br>
+C-like - clike<br>
+<strong>JavaScript - javascript</strong> <br/><br>
+ABAP - abap<br>
+ActionScript - actionscript<br>
+Ada - ada<br>
+Apache Configuration - apacheconf<br>
+APL - apl<br>
+AppleScript - applescript<br>
+AsciiDoc - asciidoc<br>
+ASP.NET (C#) - aspnet<br>
+AutoIt - autoit<br>
+AutoHotkey - autohotkey<br>
+<strong>Bash - bash</strong> <br/><br>
+BASIC - basic<br>
+Batch - batch<br>
+Bison - bison<br>
+Brainfuck - brainfuck<br>
+Bro - bro<br>
+<strong>C - c</strong> <br/><br>
+<strong>C# - csharp</strong> <br/><br>
+<strong>C++ - cpp</strong> <br/><br>
+CoffeeScript - coffeescript<br>
+Crystal - crystal<br>
+CSS Extras - css-extras<br>
+D - d<br>
+Dart - dart<br>
+Diff - diff<br>
+Docker - docker<br>
+Eiffel - eiffel<br>
+Elixir - elixir<br>
+Erlang - erlang<br>
+F# - fsharp<br>
+Fortran - fortran<br>
+Gherkin - gherkin<br>
+<strong>Git - git</strong> <br/><br>
+GLSL - glsl<br>
+<strong>Go - go</strong> <br/><br>
+GraphQL - graphql<br>
+Groovy - groovy<br>
+Haml - haml<br>
+Handlebars - handlebars<br>
+Haskell - haskell<br>
+Haxe - haxe<br>
+<strong>HTTP - http</strong> <br/><br>
+Icon - icon<br>
+Inform 7 - inform7<br>
+Ini - ini<br>
+J - j<br>
+Jade - jade<br>
+<strong>Java - java</strong> <br/><br>
+Jolie - jolie<br>
+<strong>JSON - json</strong> <br/><br>
+Julia - julia<br>
+Keyman - keyman<br>
+Kotlin - kotlin<br>
+LaTeX - latex<br>
+Less - less<br>
+LiveScript - livescript<br>
+LOLCODE - lolcode<br>
+Lua - lua<br>
+<strong>Makefile - makefile</strong> <br/><br>
+<strong>Markdown - markdown</strong> <br/><br>
+<strong>MATLAB - matlab</strong> <br/><br>
+MEL - mel<br>
+Mizar - mizar<br>
+Monkey - monkey<br>
+NASM - nasm<br>
+<strong>nginx - nginx</strong> <br/><br>
+Nim - nim<br>
+Nix - nix<br>
+NSIS - nsis<br>
+Objective-C - objectivec<br>
+OCaml - ocaml<br>
+Oz - oz<br>
+PARI/GP - parigp<br>
+Parser - parser<br>
+Pascal - pascal<br>
+<strong>Perl - perl</strong> <br/><br>
+<strong>PHP - php</strong> <br/><br>
+PHP Extras - php-extras<br>
+PowerShell - powershell<br>
+Processing - processing<br>
+Prolog - prolog<br>
+.properties - properties<br>
+Protocol Buffers - protobuf<br>
+Puppet - puppet<br>
+Pure - pure<br>
+<strong>Python - python</strong> <br/><br>
+Q - q<br>
+Qore - qore<br>
+R - r<br>
+React JSX - jsx<br>
+Reason - reason<br>
+reST (reStructuredText) - rest<br>
+Rip - rip<br>
+Roboconf - roboconf<br>
+<strong>Ruby - ruby</strong> <br/><br>
+<strong>Rust - rust</strong> <br/><br>
+SAS - sas<br>
+Sass (Sass) - sass<br>
+Sass (Scss) - scss<br>
+Scala - scala<br>
+Scheme - scheme<br>
+Smalltalk - smalltalk<br>
+Smarty - smarty<br>
+<strong>SQL - sql</strong> <br/><br>
+Stylus - stylus<br>
+Swift - swift<br>
+Tcl - tcl<br>
+Textile - textile<br>
+Twig - twig<br>
+TypeScript - typescript<br>
+Verilog - verilog<br>
+VHDL - vhdl<br>
+<strong>vim - vim</strong> <br/><br>
+Wiki markup - wiki<br>
+Xojo (REALbasic) - xojo<br>
+YAML - yaml</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

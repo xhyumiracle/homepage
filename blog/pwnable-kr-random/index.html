@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pwnable.kr - random &middot; M1r4c13</title>
+<meta name="description" content="Pwnable.kr - random -- M1r4c13 study notes, restored.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<header class="blog-head">
+<a class="mono back-link" href="/">xhyu@sky:~$ cd ~</a>
+<a class="brand brand-link" href="/blog/">M1r4c13</a>
+</header>
+<main><article class="post">
+<h1 class="post-title">Pwnable.kr - random</h1>
+<p class="meta"><span class="mono meta-date">2017.01.24</span><span class="tags"><span class="chip mono">ctf</span><span class="chip mono">pwnable.kr</span><span class="chip mono">radare2</span></span></p>
+<div class="post-body"><p>Writeup for random in <a href="http://pwnable.kr/play.php">pwnable.kr</a>.</p>
+<h3>0x00 Puzzle</h3>
+<pre><code class="language-bash">Daddy, teach me how to use random value in programming!
+
+ssh random@pwnable.kr -p2222 (pw:guest)
+</code></pre>
+<h3>0x01 Explore</h3>
+<p>ssh into the ubuntu and here we get:</p>
+<pre><code class="language-bash">$ ssh random@pwnable.kr 2222
+random@ubuntu:~$ ls -l
+total 20
+-r--r----- 1 random_pwn root     49 Jun 30  2014 flag
+-r-sr-x--- 1 random_pwn random 8538 Jun 30  2014 random
+-rw-r--r-- 1 root       root    301 Jun 30  2014 random.c
+</code></pre>
+<p>Obviously, we need to pwn the random to cat the flag file.</p>
+<p>Take a glance at the random.c:</p>
+<pre><code class="language-c">#include &lt;stdio.h&gt;
+
+int main(){
+    unsigned int random;
+    random = rand();    // random value!
+
+    unsigned int key=0;
+    scanf(&quot;%d&quot;, &amp;key);
+
+    if( (key ^ random) == 0xdeadbeef ){
+        printf(&quot;Good!\n&quot;);
+        system(&quot;/bin/cat flag&quot;);
+        return 0;
+    }
+
+    printf(&quot;Wrong, maybe you should try 2^32 cases.\n&quot;);
+    return 0;
+}
+</code></pre>
+<p>Basiclly we need to input an int <em>key</em> so that <code>key ^ rand() == 0xdeadbeef</code>.</p>
+<p>I firstly considered using r2 to set breakpoint and looking at the value of <em>random</em>, let's do it.</p>
+<pre><code class="language-bash">$ r2 -d random
+[0x7f13a99adcc0]&gt; aaa
+[0x7f13a99adcc0]&gt; s main
+[0x004005f4]&gt; pdf
+</code></pre>
+<p>Here is the disassembling code of main function:<br>
+<img alt="" src="/blog/images/2017/01/---7.PNG"></p>
+<p>We can see that </p>
+<ul>
+<li>
+<p>@0x00400601 it calls the rand() and the random return value is stored in $eax.</p>
+</li>
+<li>
+<p>@0x00400606 it move $eax to local variable <em>random</em>.</p>
+</li>
+</ul>
+<p>So we can set the breakpoint @0x00400606, then just look at the value of $eax.</p>
+<pre><code class="language-bash">[0x004005f4]&gt; db 0x00400606
+[0x004005f4]&gt; dc
+hit breakpoint at: 400606
+= attach 45875 1
+[0x004005f4]&gt; dr eax
+0x6b8b4567
+</code></pre>
+<p>We got that, which means if we input <code>0x6b8b4567 ^ 0xdeadbeef = 3039230856</code>, it should work.</p>
+<p>Let's try.</p>
+<pre><code class="language-bash">[0x004005f4]&gt; dc
+3039230856
+Good!
+/bin/cat: flag: Permission denied
+</code></pre>
+<p>Seems we got it worked but since it's running by gdb and the gdb is under our <em>random</em> user's priviledge which is not in root group.</p>
+<p>So we have to run the binary in the home directory, but how can we know the rand() value without debugging it?</p>
+<p>Then I run it many times in both gdb and r2 and I found that the value of rand() never changed.</p>
+<p>That reminded me that this program do not even set seed before calling rand(), which means every time someone run the program, it always use the same seed, I guess it's 0, no wonder it's predictable.</p>
+<h3>0x02 Solution and things learned</h3>
+<p>Now that we know the thory, just run the <em>random</em> binary and input 3039230856:</p>
+<pre><code class="language-bash">random@ubuntu:~$ ./random 
+3039230856
+Good!
+Mommy, I thought libc random is unpredictable...
+</code></pre>
+<p>Got it.</p>
+<p>This is pretty straightforward. It warns us do not just use rand() in critical secured project because it's predictable. <br>
+At least, set a changable seed value, like system time, before calling rand().</p></div>
+</article></main>
+<footer class="blog-foot">
+ <p class="mono foot-line">m1r4c13 &middot; study notes &middot; 2017 to 2018 &middot; restored</p>
+ <p class="coda"><span class="cn-inline">世界并不完美，却令人着迷。</span></p>
+</footer>
+</body>
+</html>

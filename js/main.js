@@ -44,9 +44,11 @@
    FS.children[mod.dataset.module].children[sec.dataset.slug] = { type: 'file', content: scrapeLines(sec).join('\n') };
   });
   mods.archive.querySelectorAll('.faint-list li[data-slug]').forEach(function (li) {
-   var title = li.querySelector('.faint-dead').textContent.trim();
+   var titleEl = li.querySelector('.faint-dead');
+   var title = titleEl.textContent.trim();
+   var href = titleEl.tagName === 'A' ? ' (' + titleEl.getAttribute('href') + ')' : '';
    var note = li.querySelector('.faint-note').textContent.trim();
-   FS.children.archive.children[li.dataset.slug] = { type: 'file', content: title + ': ' + note };
+   FS.children.archive.children[li.dataset.slug] = { type: 'file', content: title + href + ': ' + note };
   });
   FS.children.README = { type: 'file', content: scrapeLines(document.querySelector('.id-block')).join('\n') };
   FS.children.skills = { type: 'file', content: SKILL_LINES.join('\n') };

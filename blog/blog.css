@@ -1,0 +1,103 @@
+/* M1r4c13 blog archive -- palette and type mirror ../css/main.css.
+   Post bodies may contain arbitrary Chinese; body copy stays on the Spectral
+   stack with a system CJK fallback, never the Latin-subset CJK font. */
+
+@font-face { font-family: 'Spectral'; src: url('../fonts/spectral-300.woff2') format('woff2'); font-weight: 300; font-display: swap; }
+@font-face { font-family: 'Spectral'; src: url('../fonts/spectral-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Spectral'; src: url('../fonts/spectral-400i.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Spectral'; src: url('../fonts/spectral-500.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'PlexMono'; src: url('../fonts/plexmono-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'NotoSerifSCsub'; src: url('../fonts/notoserif-sc-subset.woff2?v=9') format('woff2'); font-weight: 500; font-display: swap; }
+
+:root {
+ --bg: #070a12;
+ --ink: #e9e4d6;
+ --dim: #8b90a0;
+ --faint: #565b6b;
+ --gold: #d8c08a;
+ --line: rgba(233, 228, 214, 0.14);
+ --panel: rgba(233, 228, 214, 0.05);
+ --serif: 'Spectral', Georgia, serif;
+ --cn: 'NotoSerifSCsub', 'Songti SC', 'Noto Serif SC', serif;
+ --mono: 'PlexMono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+ background: var(--bg);
+ color: var(--ink);
+ font-family: var(--serif);
+ font-weight: 300;
+ line-height: 1.7;
+}
+::selection { background: rgba(216, 192, 138, 0.25); }
+a { color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(216,192,138,.3); transition: border-color .2s; }
+a:hover { border-bottom-color: var(--gold); }
+
+.mono { font-family: var(--mono); letter-spacing: 0.04em; }
+.cn-inline { font-family: var(--cn); font-weight: 500; }
+
+/* header, shared by index + post pages */
+.blog-head { max-width: 720px; margin: 0 auto; padding: 7vh 6vw 3vh; }
+.back-link { display: inline-block; color: var(--faint); font-size: .72rem; letter-spacing: .1em; border-bottom: none; margin-bottom: 1.6rem; }
+.back-link:hover { color: var(--gold); }
+.brand { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 400; letter-spacing: .04em; color: var(--ink); }
+.brand-link { display: block; border-bottom: none; color: var(--ink); }
+.brand-link:hover { color: var(--gold); }
+.brand-tag { display: block; margin-top: .5rem; font-size: .7rem; color: var(--faint); letter-spacing: .08em; }
+
+/* index */
+.blog-index { max-width: 720px; margin: 0 auto; padding: 0 6vw 12vh; }
+.year-group { margin-top: 2.6rem; }
+.year-group:first-of-type { margin-top: 0; }
+.year { font-size: 1rem; color: var(--gold); opacity: .75; letter-spacing: .1em; padding-bottom: .6rem; border-bottom: 1px solid var(--line); margin-bottom: .2rem; }
+.post-list { list-style: none; }
+.post-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .6em 1em; padding: .85rem 0; border-bottom: 1px solid var(--line); }
+.post-link { flex: 1 1 auto; min-width: 55%; font-size: 1rem; color: var(--ink); border-bottom: 1px solid transparent; }
+.post-link:hover { color: var(--gold); border-bottom-color: rgba(216,192,138,.3); }
+.post-date { flex: none; font-size: .7rem; color: var(--faint); letter-spacing: .06em; }
+.tags { flex: none; display: flex; flex-wrap: wrap; gap: .4em; }
+
+.chip { display: inline-block; font-size: .62rem; letter-spacing: .06em; color: var(--dim); border: 1px solid var(--line); border-radius: 999px; padding: .18em .7em; }
+.draft-flag { display: inline-block; font-size: .62rem; letter-spacing: .1em; color: var(--faint); border: 1px solid var(--line); border-radius: 999px; padding: .18em .7em; }
+
+/* post page */
+.post { max-width: 720px; margin: 0 auto; padding: 0 6vw 10vh; }
+.post-title { font-size: clamp(1.4rem, 3.4vw, 2.1rem); font-weight: 400; line-height: 1.35; margin-bottom: 1rem; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: .7em; margin-bottom: 2.6rem; padding-bottom: 1.6rem; border-bottom: 1px solid var(--line); }
+.meta-date { font-size: .72rem; color: var(--faint); letter-spacing: .06em; }
+
+.post-body { font-size: 1rem; }
+.post-body > * + * { margin-top: 1.15em; }
+.post-body h1, .post-body h2, .post-body h3, .post-body h4, .post-body h5, .post-body h6 {
+ font-weight: 400; line-height: 1.4; color: var(--ink); margin-top: 1.8em;
+}
+.post-body h2 { font-size: 1.35rem; }
+.post-body h3 { font-size: 1.18rem; }
+.post-body h4 { font-size: 1.05rem; color: var(--gold); opacity: .9; }
+.post-body h5, .post-body h6 { font-size: .92rem; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+.post-body p { color: var(--ink); }
+.post-body strong { font-weight: 500; }
+.post-body em { font-style: italic; }
+.post-body ul, .post-body ol { padding-left: 1.4em; }
+.post-body li + li { margin-top: .4em; }
+.post-body blockquote { border-left: 2px solid var(--gold); padding-left: 1.1em; color: var(--dim); font-style: italic; }
+.post-body img { max-width: 100%; border: 1px solid var(--line); border-radius: 4px; display: block; }
+.post-body code { font-family: var(--mono); font-size: .85em; background: var(--panel); padding: .1em .35em; border-radius: 3px; }
+.post-body pre { font-family: var(--mono); font-size: .82rem; line-height: 1.6; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1em 1.2em; overflow-x: auto; }
+.post-body pre code { background: none; padding: 0; border-radius: 0; }
+.post-body table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+.post-body th, .post-body td { border: 1px solid var(--line); padding: .5em .7em; text-align: left; }
+.post-body hr { border: none; border-top: 1px solid var(--line); margin: 2em 0; }
+
+/* footer, shared */
+.blog-foot { max-width: 720px; margin: 0 auto; padding: 3vh 6vw 8vh; border-top: 1px solid var(--line); }
+.foot-line { font-size: .68rem; color: var(--faint); letter-spacing: .08em; }
+.coda { margin-top: .8rem; }
+.coda .cn-inline { color: var(--gold); opacity: .8; font-size: .85rem; letter-spacing: .16em; }
+
+@media (max-width: 640px) {
+ .blog-head, .blog-index, .post, .blog-foot { padding-left: 7vw; padding-right: 7vw; }
+ .post-link { min-width: 100%; }
+}
