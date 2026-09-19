@@ -10,7 +10,8 @@
  var ALIASES = { hacker: 'hacker', builder: 'builder', researcher: 'researcher', archive: 'archive', safeclaw: 'builder' };
  /* scholar -> researcher rename: legacy #scholar (and the old ch4 alias) still redirect here */
  var LEGACY_HASH = { ch1: 'hacker', ch2: 'hacker', ch3: 'builder', ch4: 'researcher', safeclaw: 'builder', scholar: 'researcher' };
- var QLINE = (document.getElementById('avatarPopoverHalf') || {}).textContent || '';
+ var QLINE_CN = (document.getElementById('avatarPopoverCn') || {}).textContent || '';
+ var QLINE_EN = (document.getElementById('avatarPopoverEn') || {}).textContent || '';
 
  var mods = {};
  MODULES.forEach(function (id) { mods[id] = document.getElementById('mod-' + id); });
@@ -144,10 +145,9 @@
   document.getElementById('chevR').addEventListener('click', function () { dispatchEvent(new CustomEvent('sky:swipe', { detail: 1 })); });
  }
 
- /* avatar popover: click the ? to toggle a small card (the research line + the half-sentence
-  that used to live in the ?'s native title tooltip, now removed). dismiss on: clicking ? again
-  (handled by the toggle itself), clicking outside (document-level listener below), or ESC (see
-  globalKeydown). */
+ /* avatar popover: click the ? to toggle a small card holding the two slogan lines (CN + EN).
+  dismiss on: clicking ? again (handled by the toggle itself), clicking outside (document-level
+  listener below), or ESC (see globalKeydown). */
  var avatarQ = document.getElementById('avatarQ');
  var avatarPopover = document.getElementById('avatarPopover');
  var popoverOpen = false;
@@ -335,7 +335,7 @@
  function catCmd(arg) {
   var a = (arg || '').trim();
   if (!a) { printLine('cat: missing operand'); return; }
-  if (a === '?') { printLine(QLINE); return; }
+  if (a === '?') { printLines([QLINE_CN, QLINE_EN]); return; }
   var r = resolvePath(a, cwd);
   if (!r.node) { printLine('cat: ' + a + ': No such file or directory'); return; }
   if (r.node.type === 'dir') { printLine('cat: ' + a + ': Is a directory'); return; }
