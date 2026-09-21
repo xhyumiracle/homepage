@@ -1,15 +1,16 @@
-/* v5: module content, hash sync, legend, the corner-window xterm-backed shell (with the
- shell-open focus fix). sky lives in starfield.js. */
+/* v9: module content (research / projects / talks / about, by type), hash sync, legend, the
+ ticking uptime line, the corner-window xterm-backed shell (with the shell-open focus fix).
+ sky lives in starfield.js. */
 (function () {
  var shotM = /[?&]shot(?:=([a-z0-9]+))?/.exec(location.search);
  var reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
  var still = !!shotM || reducedMotion;
  if (still) document.documentElement.classList.add('still');
 
- var MODULES = ['researcher', 'builder', 'hacker', 'archive'];
- var ALIASES = { hacker: 'hacker', builder: 'builder', researcher: 'researcher', archive: 'archive', safeclaw: 'builder' };
- /* scholar -> researcher rename: legacy #scholar (and the old ch4 alias) still redirect here */
- var LEGACY_HASH = { ch1: 'hacker', ch2: 'hacker', ch3: 'builder', ch4: 'researcher', safeclaw: 'builder', scholar: 'researcher' };
+ var MODULES = ['research', 'projects', 'talks', 'about'];
+ var ALIASES = { research: 'research', projects: 'projects', talks: 'talks', about: 'about', safeclaw: 'projects', publications: 'research', pubs: 'research' };
+ /* v9 regrouped the sky by type; every id the site has ever used still lands somewhere sensible */
+ var LEGACY_HASH = { ch1: 'about', ch2: 'about', ch3: 'projects', ch4: 'research', safeclaw: 'projects', scholar: 'research', researcher: 'research', builder: 'projects', hacker: 'about', archive: 'about' };
  var QLINE_CN = (document.getElementById('avatarPopoverCn') || {}).textContent || '';
  var QLINE_EN = (document.getElementById('avatarPopoverEn') || {}).textContent || '';
 
@@ -37,6 +38,30 @@
   'exploit-development (10y) · protocol-auditing (~1M LoC audited)',
   'zero-to-one shipping (3 products) · agentic-rl research (4 papers)',
  ];
+ /* uptime: the footer status line ticks once a second in the shape of the unix command. the
+  epoch is 1994-04-01T00:00Z, chosen by the owner (not a real birthday); only the days figure
+  is meaningful and only to someone who does the arithmetic. */
+ var UPTIME_EPOCH = Date.UTC(1994, 3, 1, 0, 0, 0);
+ var LOAD_LINE = 'agent security, forensics, rl';
+ function two(n) { return (n < 10 ? '0' : '') + n; }
+ function uptimeText(full) {
+  var s = Math.max(0, Math.floor((Date.now() - UPTIME_EPOCH) / 1000));
+  var days = Math.floor(s / 86400); s -= days * 86400;
+  var h = Math.floor(s / 3600); s -= h * 3600;
+  var m = Math.floor(s / 60); s -= m * 60;
+  if (full) {
+   var now = new Date();
+   return ' ' + two(now.getHours()) + ':' + two(now.getMinutes()) + ':' + two(now.getSeconds()) + ' up ' + days + ' days, ' + h + ':' + two(m) + ', 1 user, load average: ' + LOAD_LINE;
+  }
+  return 'up ' + days + ' days, ' + two(h) + ':' + two(m) + ':' + two(s) + ' \u00b7 load: ' + LOAD_LINE + ' \u00b7 1 user';
+ }
+ function startUptime() {
+  var el = document.getElementById('uptimeLine');
+  if (!el) return;
+  function tick() { el.textContent = uptimeText(false); }
+  tick();
+  if (!still) setInterval(tick, 1000);
+ }
  function buildFS() {
   MODULES.forEach(function (id) { FS.children[id] = { type: 'dir', children: {} }; });
   document.querySelectorAll('.subsec[data-slug]').forEach(function (sec) {
@@ -44,14 +69,9 @@
    if (!mod) return;
    FS.children[mod.dataset.module].children[sec.dataset.slug] = { type: 'file', content: scrapeLines(sec).join('\n') };
   });
-  mods.archive.querySelectorAll('.faint-list li[data-slug]').forEach(function (li) {
-   var titleEl = li.querySelector('.faint-dead');
-   var title = titleEl.textContent.trim();
-   var href = titleEl.tagName === 'A' ? ' (' + titleEl.getAttribute('href') + ')' : '';
-   var note = li.querySelector('.faint-note').textContent.trim();
-   FS.children.archive.children[li.dataset.slug] = { type: 'file', content: title + href + ': ' + note };
-  });
   FS.children.README = { type: 'file', content: scrapeLines(document.querySelector('.id-block')).join('\n') };
+  FS.children['cv.pdf'] = { type: 'file', content: 'binary. open it: /cv.pdf' };
+  FS.children.notes = { type: 'file', content: 'M1r4c13: 51 study notes from 2017 and 2018, restored (/blog/)' };
   FS.children.skills = { type: 'file', content: SKILL_LINES.join('\n') };
  }
  function nodeAt(segs) {
@@ -421,7 +441,7 @@
    case 'echo': echoCmd(arg); break;
    case 'skill': case 'skills': printLines(SKILL_LINES); break;
    case 'whoami': printLine('xhyumiracle. imperfect, therefore fascinating.'); break;
-   case 'uptime': printLine('since 1993, mostly.'); break;
+   case 'uptime': printLine(uptimeText(true)); break;
    case 'history': shellHistory.forEach(function (h, i) { printLine('  ' + (i + 1) + '  ' + h); }); break;
    case 'date': printLine(new Date().toString()); break;
    case 'sudo': printLine('approval required: passkey not found.'); break;
@@ -529,6 +549,7 @@
  /* boot */
  function boot() {
   buildFS();
+  startUptime();
   wireLegend();
   wireChrome();
   wirePopover();

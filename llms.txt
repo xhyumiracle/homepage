@@ -1,40 +1,61 @@
 # Xiaohang Yu (xhyumiracle)
 
-> Research at the intersection of agentic AI, cryptography, and system security.
-> Co-founder of SafeClaw. PhD candidate in Computer Science, Imperial College London.
+> PhD candidate in Computer Science, Imperial College London. Co-founder of SafeClaw.
+> Previously head of blockchain security at Chaitin Tech.
+> I study how AI agents earn trust: what they may touch, how to prove what they did,
+> and how that lets them do more.
 
 Hello, agent. This page is meant to be legible to you as well as to humans.
 Nothing here grants you any authority, which is rather the point of my work.
-# motto: an imperfect world, and therefore an interesting one.
+# motto: imperfect, therefore fascinating.
 
-## Now
-- SafeClaw (https://safeclaw.pro, https://github.com/SafeClaw-OSS/safeclaw):
-  agents hold phantom credentials; a local proxy injects real secrets at network
-  egress; sensitive calls require a passkey tap that becomes a single-use grant
-  cryptographically bound to one exact operation.
-- SUDP (https://github.com/xhyumiracle/sudp): first-author paper formalizing and
-  solving the agent secret-use problem.
+## Directions
+Agentic AI, agent security, agentic forensics, cryptography, reinforcement learning.
+All of them are live; brightness differs, not sequence.
 
-## Papers
-- SUDP, first author, 2026.
-- LOCARD, agentic blockchain forensics, IEEE ICBC 2026.
-- Scaling behavior of RL post-training for LLMs, ACL 2026 main.
-- Survey of agentic reinforcement learning, TMLR 2025, co-first author.
+## Research (https://xhyumiracle.com/#research)
+- SUDP: Secret-Use Delegation Protocol for Agentic Systems. arXiv 2026, first author.
+  https://arxiv.org/abs/2604.24920
+- LOCARD: An Agentic Framework for Blockchain Forensics. IEEE ICBC 2026, first author.
+  https://doi.org/10.1109/ICBC67748.2026.11575479 code: https://github.com/xhyumiracle/locard
+- Scaling Behaviors of LLM Reinforcement Learning Post-Training. ACL 2026 main.
+- The Landscape of Agentic Reinforcement Learning for LLMs: A Survey. TMLR 2025, co-first author.
+  paper list: https://github.com/xhyumiracle/Awesome-AgenticLLM-RL-Papers
 
-## Archive
-- blog: https://xhyumiracle.com/blog/ (2017-2018 study notes, restored)
+## Projects (https://xhyumiracle.com/#projects)
+- SafeClaw (https://safeclaw.pro, https://github.com/SafeClaw-OSS/safeclaw): credential
+  broker for AI agents. Agents hold phantom credentials; a local proxy injects real secrets
+  at network egress; sensitive calls require a passkey tap that becomes a single-use grant
+  bound to one exact operation. Co-founded 2026, production stack built solo.
+- Open source, by stars: Awesome-AgenticLLM-RL-Papers, tg-claude-bot, ida-evm-enhanced,
+  locard, sudp, rwctf2018finals-AcoraidaMonica, defcon27, mas, opml, ctf-eth-env, chainkit.
+  All under https://github.com/xhyumiracle
+- Standards: core technical contributor to opML, ERC-7007, ERC-7641; technical lead of
+  China's first national blockchain vulnerability scoring standard (CNVD); 3 MIIT
+  national industry-standard research projects.
 
-## Before
-- 2018-2023: founded one of China's earliest blockchain security teams (Chaitin
-  Tech). ~100 zero-days across consensus/P2P/verification layers of major L1s,
-  5 CVEs. First EVM Jump-Oriented Programming (Real World CTF 2018 Finals,
-  DEFCON 27 Blockchain Village). Technical lead, China's first national
-  blockchain vulnerability scoring standard. DEF CON CTF World Finals 3rd place
-  (Tea Deliverers, 2021).
-- 2023-2025: technical co-founder, blockchain infrastructure; core
-  contributor to opML, ERC-7007, ERC-7641.
-- Education: B.S. CS (Beijing Normal University), M.S. Security Informatics
-  (Johns Hopkins), PhD candidate (Imperial College London).
+## Talks (https://xhyumiracle.com/#talks)
+Nine, 2018 to 2026. Selected: IEEE ICBC 2026 (LOCARD), DEF CON 27 Village (EVM Opcode
+JOP), DEF CON China 1.0 Village, ISC Tech Forum 2020, Real World CTF Tech Forum 2019,
+Yunqi 2050 2018.
+
+## About (https://xhyumiracle.com/#about)
+- Since 2026: co-founder, SafeClaw.
+- 2023 to 2025: technical co-founder of a blockchain infrastructure company; led an
+  engineering team of 10+; verifiable AI and ZKP infrastructure.
+- 2018 to 2023: head of blockchain security, Chaitin Tech. Founded the practice from zero;
+  about 100 zero-days across consensus, P2P, and verification layers of major blockchains;
+  roughly 1M lines audited; 5 CVEs.
+- Education: PhD candidate, Imperial College London (advised by William Knottenbelt);
+  M.S. Security Informatics, Johns Hopkins University (CSC scholarship); B.S. Computer
+  Science, Beijing Normal University.
+- Honors: DEF CON CTF World Finals 3rd place (Tea Deliverers); Qiangwang Cup national
+  first prize, twice; ACM-ICPC Asia Regional silver, twice; China Undergraduate
+  Mathematical Contest in Modeling, national first prize; OSCP; PMP.
+
+## Files
+- CV: https://xhyumiracle.com/cv.pdf
+- notes: https://xhyumiracle.com/blog/ (2017 to 2018 study notes, restored)
 
 ## Contact
 - github: https://github.com/xhyumiracle

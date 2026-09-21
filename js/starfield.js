@@ -45,7 +45,7 @@
  var shot = !!shotM;
  var still = reduced || shot;
 
- var MODULES = ['researcher', 'builder', 'hacker', 'archive'];
+ var MODULES = ['research', 'projects', 'talks', 'about'];
 
  var W = 0, H = 0, dpr = 1;
  var pole = { x: 0, y: 0 }; /* world center: polaris, the home anchor the gaze camera rests at */
@@ -67,24 +67,25 @@
  function smooth01(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
 
  /* asterism data: normalized local coords, y-down, upright (never rotated, never scaled by
-  hover/attention). Orion (hacker): classic outline quadrilateral Betelgeuse-Bellatrix-Rigel-
-  Saiph plus the belt as its own separate 3-star polyline. Pleiades (archive): real mini-dipper
+  hover/attention). Orion (about): classic outline quadrilateral Betelgeuse-Bellatrix-Rigel-
+  Saiph plus the belt as its own separate 3-star polyline. Pleiades (talks): real mini-dipper
   arrangement, 9 named stars, no connecting lines. */
  var CONS = [
-  { id: 'hacker', name: 'hacker', sub: 'blockchain security', scaleF: 0.19,
+  { id: 'about', name: 'about', sub: 'career · education · honors', scaleF: 0.19,
    /* Betelgeuse, Bellatrix, Rigel, Saiph, Alnitak, Alnilam, Mintaka */
    pts: [[.20,.05],[.62,.12],[.72,.90],[.28,.95],[.34,.48],[.44,.52],[.54,.56]],
    lines: [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6]], warmIdx: 0 },
-  { id: 'builder', name: 'builder', sub: 'SafeClaw · standards', scaleF: 0.15,
+  { id: 'projects', name: 'projects', sub: 'SafeClaw · open source', scaleF: 0.15,
    pts: [[0,.10],[.12,.35],[.35,.60],[.50,.68],[.72,.55],[.82,.18],[.95,.05]],
    lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0]], specialIdx: 6 },
-  { id: 'researcher', name: 'researcher', sub: 'ICL PhD · 3 directions', scaleF: 0.15,
+  { id: 'research', name: 'research', sub: 'ICL PhD · 4 papers', scaleF: 0.15,
    pts: [[.15,.10],[.30,.02],[.32,.25],[.55,.35],[.50,.62],[.72,.60]],
    lines: [[0,1],[0,2],[2,3],[3,5],[5,4],[4,2]], brightIdx: 0 },
-  { id: 'archive', name: 'fainter stars', sub: 'archive', scaleF: 0.14, dim: true,
+  { id: 'talks', name: 'talks', sub: '9 talks · 2018 to 2026', scaleF: 0.17,
    /* Atlas, Alcyone, Merope, Electra, Maia, Taygeta, Pleione, Celaeno, Sterope */
    pts: [[.72,.30],[.58,.38],[.50,.56],[.36,.50],[.40,.30],[.28,.26],[.76,.22],[.30,.38],[.36,.20]],
-   sizes: [1.2,1.4,1.0,1.05,1.1,.95,.9,.8,.8], lines: [] },
+   /* v9: it carries a module now, so it gets the mini-dipper drawn in — bowl Alcyone-Merope-Electra-Maia, handle out to Atlas, tip to Taygeta */
+   sizes: [1.5,1.8,1.3,1.35,1.4,1.2,1.1,1.0,1.0], lines: [[1,2],[2,3],[3,4],[4,1],[1,0],[4,5]], brightIdx: 1 },
  ];
  var byId = {};
  CONS.forEach(function (c) { byId[c.id] = c; c.hover = 0; c.pulseStart = null; });
@@ -93,13 +94,13 @@
   the amplitude is now measured against the 1.7x WORLD half-extent instead of the viewport
   half-extent, so the same "clear of chrome, non-overlapping" margin math that used to bound
   the rest pose to the viewport now spreads the shape out into the extra world margin instead:
-  hacker upper-left, builder right, researcher lower-right, archive mid-left, same as before, just
+  about upper-left, projects right, research lower-right, talks mid-left, same as before, just
   further out. no per-frame recompute: c.wx/c.wy are written once in layout() and read forever. */
  var ORBIT = {
-  hacker:  { ang: d2r(205), fracA: .30, fracB: .42 },
-  builder: { ang: d2r(5),   fracA: .46, fracB: .66 },
-  researcher: { ang: d2r(60),  fracA: .46, fracB: .56 },
-  archive: { ang: d2r(175), fracA: .46, fracB: .48 },
+  about:    { ang: d2r(205), fracA: .30, fracB: .42 },
+  projects: { ang: d2r(5),   fracA: .46, fracB: .66 },
+  research: { ang: d2r(60),  fracA: .46, fracB: .56 },
+  talks:    { ang: d2r(175), fracA: .46, fracB: .48 },
  };
 
  var pulseNext = 0, lastPulseId = null;
@@ -587,7 +588,8 @@
    var mobile = W < 720;
    var ultrawide = (W / H) > 1.9;
 
-   var newPole = { x: W * 0.5, y: H * (mobile ? 0.56 : 0.5) }; /* polaris = world center = camera home; a touch lower on mobile to clear the stacked header */
+   var newPole = { x: W * 0.5, y: H * 0.5 }; /* polaris = world center = camera home. note: the camera rests ON the pole, so the pole always renders at screen center whatever this is; mobile clearance for the stacked header is done with MOBILE_DY below, not here */
+   var MOBILE_DY = mobile ? H * 0.12 : 0; /* v9: the header is taller (affiliation + positioning lines), so on mobile every constellation sits this much further down the world than its desktop rest pose */
    var newWorld = { halfW: W * 0.85, halfH: H * 0.85 };
    newWorld.marginX = newWorld.halfW - W / 2; /* = 0.35W: the extra world beyond the viewport edge on each side */
    newWorld.marginY = newWorld.halfH - H / 2;
@@ -616,8 +618,8 @@
      trick that turns the old viewport-bounded rest pose into a world position that spreads
      into the extra 1.7x margin: same formula, bigger canvas underneath it. */
     var orbitA = Math.max(o.fracA * newWorld.halfW - marginX, floor);
-    var orbitB = Math.max(o.fracB * newWorld.halfH - marginY, floor);
-    var wx = newPole.x + orbitA * Math.cos(o.ang), wy = newPole.y + orbitB * Math.sin(o.ang);
+    var orbitB = Math.max(o.fracB * newWorld.halfH * (mobile ? 0.75 : 1) - marginY, floor); /* mobile: squeeze the vertical spread so the MOBILE_DY shift doesn't push the bottom constellation off-screen */
+    var wx = newPole.x + orbitA * Math.cos(o.ang), wy = newPole.y + orbitB * Math.sin(o.ang) + MOBILE_DY;
     results[i] = {
      localPts: shape.localPts, maxR: shape.maxR, wx: wx, wy: wy,
      rad: Math.max(shape.maxR + scale * 0.28, 46),
