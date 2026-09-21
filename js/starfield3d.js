@@ -221,7 +221,8 @@
  }
  function uploadStars(verts) {
   starVerts = verts; starCount = verts.length / 8;
-  starBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, starBuf);
+  if (!starBuf) starBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, starBuf);
   gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
  }
  function loadTexture() {
@@ -688,10 +689,20 @@
  initGL();
  layout();
  requestAnimationFrame(frame);
- fetch('data/stars.bin?v=14').then(function (r) { return r.arrayBuffer(); }).then(function (buf) {
+ /* the catalogue comes in two files, brightest first: the naked-eye sky (mag <= 6, ~5k stars,
+  30KB) is on screen within the first few hundred milliseconds, the faint 36k follow and are
+  appended in place; the map starts loading once the bright set is up. */
+ function fetchBin(url) { return fetch(url).then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }); }
+ fetchBin('data/stars-bright.bin?v=14').then(function (buf) {
   uploadStars(unpackStars(buf));
   if (still) repaint();
   loadTexture();
- }).catch(function (err) { if (window.console) console.warn('sky: star catalogue failed to load', err); loadTexture(); });
+  return fetchBin('data/stars-faint.bin?v=14').then(function (buf2) {
+   var faint = unpackStars(buf2), all = new Float32Array(starVerts.length + faint.length);
+   all.set(starVerts); all.set(faint, starVerts.length);
+   uploadStars(all);
+   if (still) repaint();
+  });
+ }).catch(function (err) { if (window.console) console.warn('sky: star catalogue failed to load', err); if (!tex) loadTexture(); });
  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (still) repaint(); });
 })();
