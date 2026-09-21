@@ -473,7 +473,8 @@
 
  /* --- camera --- */
  function restFor() { return mobile ? VIEW_MOBILE : VIEW; }
- function focalFor(fov) { return (W / 2) / Math.tan(fov / 4); }
+ var VFOV_MAX = 84 * D2R; /* on short, wide windows (a laptop browser with its chrome) the width-derived focal length would crop the sky top and bottom and push the lowest figure into the footer; cap the vertical field instead and let the horizontal one widen */
+ function focalFor(fov) { return Math.min((W / 2) / Math.tan(fov / 4), (H / 2) / Math.tan(VFOV_MAX / 4)); }
  function layout() {
   var newW = innerWidth, newH = innerHeight;
   if (!newW || !newH) return;
