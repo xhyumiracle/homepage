@@ -41,7 +41,9 @@ button { background: none; border: 0; color: inherit; font: inherit; cursor: poi
 .cn-inline { font-family: var(--cn); font-weight: 500; }
 .sc-tint { color: var(--cyan); }
 
-#sky { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; transition: opacity 1s ease; touch-action: none; }
+#skygl, #sky { position: fixed; inset: 0; width: 100vw; height: 100vh; touch-action: none; }
+#skygl { z-index: 0; background: var(--bg); } /* WebGL: background map + 25k catalogue stars; opaque, paints navy on frame one */
+#sky { z-index: 1; transition: opacity 1s ease; } /* 2D overlay: asterism lines, labels, home mark, meteors, echo; receives the pointer */
 #sky.dim { opacity: .2; }
 .grain {
  position: fixed; inset: -50%; width: 200%; height: 200%; z-index: 3; pointer-events: none; opacity: .035;

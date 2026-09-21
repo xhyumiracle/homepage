@@ -154,6 +154,7 @@
   sync();
  }
  function sync() {
+  if (!window.Sky) { setTimeout(sync, 60); return; } /* the no-WebGL fallback sky loads async; wait for it rather than throw */
   var id = moduleForHash(location.hash);
   if (id) Sky.flyTo(id); else Sky.flyOut();
  }
