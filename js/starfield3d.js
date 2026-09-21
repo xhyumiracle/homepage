@@ -394,14 +394,22 @@
 
   if (zoomed && activeId !== c.id) return; /* while a module is open the other figures stay as faint lines only: their labels would float over the panel text */
   var la = still ? 0.9 : 0.55 + 0.45 * vis;
-  var half = 60;
-  var lx = Math.max(half, Math.min(W - half, c.sx)), ly = maxY + 22 * scaleK; /* keep the label inside the viewport even when the figure touches an edge (phone) */
-  ctx.textAlign = 'center';
+  drawLabel(c.name.toUpperCase(), c.sx, maxY + 26 * scaleK, la, mobile ? 15 : 19);
+ }
+ /* figure labels: tracked capitals in the light serif, the way star atlases set constellation
+  names. tracking is done by hand (ctx.letterSpacing is not everywhere yet) and the whole word
+  is kept inside the viewport even when the figure touches an edge (phone). */
+ function drawLabel(text, x, y, alpha, size) {
   ctx.save();
-  ctx.font = '300 16px Spectral, serif';
-  ctx.shadowColor = 'rgba(140,210,255,' + (0.7 * la) + ')'; ctx.shadowBlur = 9;
-  ctx.fillStyle = 'rgba(236,244,255,' + la + ')';
-  ctx.fillText(c.name, lx, ly);
+  ctx.font = '300 ' + size + 'px Spectral, serif';
+  ctx.textAlign = 'left';
+  var track = size * 0.22, total = -track;
+  var widths = [];
+  for (var i = 0; i < text.length; i++) { var w = ctx.measureText(text[i]).width; widths.push(w); total += w + track; }
+  var x0 = Math.max(10, Math.min(W - 10 - total, x - total / 2));
+  ctx.shadowColor = 'rgba(140,210,255,' + (0.7 * alpha) + ')'; ctx.shadowBlur = 10;
+  ctx.fillStyle = 'rgba(238,245,255,' + alpha + ')';
+  for (var k = 0; k < text.length; k++) { ctx.fillText(text[k], x0, y); x0 += widths[k] + track; }
   ctx.restore();
  }
 
