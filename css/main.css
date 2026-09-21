@@ -92,6 +92,7 @@ body.zoomed .id-block { opacity: .22; pointer-events: none; }
 .affil .sep { color: var(--faint); margin: 0 .3em; }
 .affil-prev { margin-top: .1rem; color: var(--dim); font-size: .86rem; }
 .position { margin-top: .9rem; font-size: .98rem; line-height: 1.55; color: var(--ink); max-width: 40ch; font-style: italic; font-weight: 300; }
+.position-foot { color: var(--dim); } /* the footing, a shade quieter than the destination */
 .directions { color: var(--dim); opacity: 1; letter-spacing: .1em; font-size: .74rem; margin-top: .9rem; }
 .quicknav { margin-top: .9rem; letter-spacing: .14em; }
 .quicknav a { color: var(--gold); margin-right: 1.5em; border-bottom-color: rgba(216,192,138,.25); font-size: .72rem; }

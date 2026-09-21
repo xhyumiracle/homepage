@@ -2,8 +2,7 @@
 
 > PhD candidate in Computer Science, Imperial College London. Co-founder of SafeClaw.
 > Previously head of blockchain security at Chaitin Tech.
-> I study how AI agents earn trust: what they may touch, how to prove what they did,
-> and how that lets them do more.
+> AI will outgrow us. I study what it takes to raise it. Starting with trust.
 
 Hello, agent. This page is meant to be legible to you as well as to humans.
 Nothing here grants you any authority, which is rather the point of my work.
