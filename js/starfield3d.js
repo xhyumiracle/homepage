@@ -73,6 +73,18 @@
   var b = camBasis(yaw, pitch);
   return mul3([b.r[0], b.r[1], b.r[2], b.u[0], b.u[1], b.u[2], b.f[0], b.f[1], b.f[2]], M_EQ2HOR);
  }
+ /* the look-around: small rotations about the camera's OWN axes (turn the head right: about
+  the screen's vertical; look up: about the screen's horizontal), composed onto the rest pose.
+  rotating the pose's azimuth instead (v10.0) spun the sky about the zenith, which at a 44
+  degree pitch reads as the field wheeling rather than the head turning. gx > 0 turns right,
+  gy > 0 pitches up; both in radians. */
+ function eqToCamWithGaze(yaw, pitch, gx, gy) {
+  var base = eqToCamMatrix(yaw, pitch);
+  var cy = Math.cos(gx), sy = Math.sin(gx), cp = Math.cos(gy), sp = Math.sin(gy);
+  var Ry = [cy, 0, -sy, 0, 1, 0, sy, 0, cy];
+  var Rx = [1, 0, 0, 0, cp, -sp, 0, sp, cp];
+  return mul3(mul3(Rx, Ry), base);
+ }
  function transpose3(m) { return [m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]]; }
  function apply3(m, v) { return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]]; }
  function radecToDir(raDeg, decDeg) {
@@ -103,6 +115,7 @@
  var litId = null;
  var starCount = 0, texReady = 0, texFadeT0 = 0;
  var mEqCam = eqToCamMatrix(CAM.yaw, CAM.pitch);
+ function rebuildCam() { mEqCam = eqToCamWithGaze(CAM.yaw, CAM.pitch, GAZE.cx / REST.F, -GAZE.cy / REST.F); }
 
  /* --- data: stars.bin -> interleaved float buffer --- */
  var starBuf = null, starVerts = null;
@@ -381,7 +394,7 @@
 
   if (zoomed && activeId !== c.id) return; /* while a module is open the other figures stay as faint lines only: their labels would float over the panel text */
   var la = still ? 0.9 : 0.55 + 0.45 * vis;
-  var half = Math.max(70, ctx.measureText(c.sub).width / 2 + 8);
+  var half = 60;
   var lx = Math.max(half, Math.min(W - half, c.sx)), ly = maxY + 22 * scaleK; /* keep the label inside the viewport even when the figure touches an edge (phone) */
   ctx.textAlign = 'center';
   ctx.save();
@@ -389,12 +402,6 @@
   ctx.shadowColor = 'rgba(140,210,255,' + (0.7 * la) + ')'; ctx.shadowBlur = 9;
   ctx.fillStyle = 'rgba(236,244,255,' + la + ')';
   ctx.fillText(c.name, lx, ly);
-  ctx.restore();
-  ctx.save();
-  ctx.font = '10.5px PlexMono, monospace';
-  ctx.shadowColor = 'rgba(2,11,26,' + (0.9 * la) + ')'; ctx.shadowBlur = 3;
-  ctx.fillStyle = 'rgba(132,158,194,' + la + ')';
-  ctx.fillText(c.sub, lx, ly + 16);
   ctx.restore();
  }
 
@@ -472,12 +479,10 @@
   if (zoomed && activeId && byId[activeId]) { var t = targetCamFor(activeId); CAM.yaw = t.yaw; CAM.pitch = t.pitch; CAM.F = t.F; }
   else { zoomed = false; activeId = null; CAM.yaw = REST.yaw; CAM.pitch = REST.pitch; CAM.F = REST.F; }
   camAnim = null; frozen = false; gazeIdling = false;
-  mEqCam = eqToCamMatrix(CAM.yaw, CAM.pitch);
+  rebuildCam();
  }
- function applyGaze() { /* rest pose + ambient look-around (pixels at rest -> radians) */
-  CAM.yaw = REST.yaw + GAZE.cx / REST.F;
-  CAM.pitch = REST.pitch - GAZE.cy / REST.F;
-  CAM.F = REST.F;
+ function applyGaze() { /* the pose rests; the look-around itself is composed in rebuildCam() from GAZE (pixels at the rest focal length -> radians) */
+  CAM.yaw = REST.yaw; CAM.pitch = REST.pitch; CAM.F = REST.F;
  }
  /* fly-to target: the asterism centre lands at (0.225W, 0.5H) (phone: 0.5W, 0.2H) with the
   focal length x ZOOM. solved by a few fixed-point steps on yaw/pitch against the actual
@@ -509,7 +514,7 @@
   while (dy < -Math.PI) dy += 2 * Math.PI;
   target = { yaw: CAM.yaw + dy, pitch: target.pitch, F: target.F };
   if (still || dur <= 0) { setCamImmediate(target); if (onDone) onDone(); return; }
-  camAnim = { from: { yaw: CAM.yaw, pitch: CAM.pitch, F: CAM.F }, to: target, t0: performance.now(), dur: dur, onDone: onDone };
+  camAnim = { from: { yaw: CAM.yaw, pitch: CAM.pitch, F: CAM.F }, to: target, gaze0: { cx: GAZE.cx, cy: GAZE.cy }, t0: performance.now(), dur: dur, onDone: onDone };
  }
  function updateCam(now) {
   if (!camAnim) return;
@@ -517,6 +522,7 @@
   CAM.yaw = camAnim.from.yaw + (camAnim.to.yaw - camAnim.from.yaw) * e;
   CAM.pitch = camAnim.from.pitch + (camAnim.to.pitch - camAnim.from.pitch) * e;
   CAM.F = camAnim.from.F + (camAnim.to.F - camAnim.from.F) * e;
+  GAZE.cx = camAnim.gaze0.cx * (1 - e); GAZE.cy = camAnim.gaze0.cy * (1 - e); /* whatever look-around was in effect folds into the flight instead of snapping off at its start */
   if (t >= 1) { var cb = camAnim.onDone; camAnim = null; if (cb) cb(); }
  }
  function flyTo(id) {
@@ -530,7 +536,6 @@
   if (!zoomed) return;
   zoomed = false; activeId = null;
   dispatchEvent(new CustomEvent('sky:zoomstart', { detail: { id: null } }));
-  GAZE.cx = 0; GAZE.cy = 0;
   tweenCam({ yaw: REST.yaw, pitch: REST.pitch, F: REST.F }, 700, function () { dispatchEvent(new CustomEvent('sky:settle', { detail: { id: null } })); });
   if (still) repaint();
  }
@@ -539,7 +544,7 @@
  function onHomeClick() {
   if (zoomed) { flyOut(); return; }
   frozen = !frozen;
-  if (frozen) { gazeIdling = false; GAZE.cx = 0; GAZE.cy = 0; tweenCam({ yaw: REST.yaw, pitch: REST.pitch, F: REST.F }, 1000); }
+  if (frozen) { gazeIdling = false; tweenCam({ yaw: REST.yaw, pitch: REST.pitch, F: REST.F }, 1000); }
   else { camAnim = null; }
  }
 
@@ -556,7 +561,7 @@
   return { x: ax + WANDER_AMP * Math.sin((2 * Math.PI * t) / WANDER_PERIOD), y: ay + WANDER_AMP * 0.7 * Math.sin((2 * Math.PI * t) / (WANDER_PERIOD * 1.5) + 1.3) };
  }
  function updateGaze(now, dt) {
-  if (zoomed || frozen) return;
+  if (zoomed || frozen || camAnim) return; /* the flight (in or out) and the freeze hold own the camera; the spring resumes from GAZE = 0 the frame after a flight lands, which is exactly where the flight leaves it, so nothing jumps (v10.0 let applyGaze() overwrite the fly-out tween on its first frame: the exit snapped) */
   if (still) { GAZE.cx = 0; GAZE.cy = 0; applyGaze(); return; }
   if (touch && ptrDragging) { GAZE.cx = clampGaze(touchRawX); GAZE.cy = clampGaze(touchRawY); applyGaze(); return; }
   var desiredX, desiredY;
@@ -597,7 +602,7 @@
   var dt = Math.max(0, Math.min((t0 - lastT) / 1000, 0.1)); lastT = t0;
   updateCam(now);
   updateGaze(now, dt);
-  mEqCam = eqToCamMatrix(CAM.yaw, CAM.pitch);
+  rebuildCam();
 
   drawGL(now);
 
