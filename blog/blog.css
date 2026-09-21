@@ -10,13 +10,13 @@
 @font-face { font-family: 'NotoSerifSCsub'; src: url('../fonts/notoserif-sc-subset.woff2?v=9') format('woff2'); font-weight: 500; font-display: swap; }
 
 :root {
- --bg: #070a12;
- --ink: #e9e4d6;
- --dim: #8b90a0;
- --faint: #565b6b;
+ --bg: #020b1a;
+ --ink: #e9f1fb;
+ --dim: #94a6c0;
+ --faint: #5e6f8a;
  --gold: #d8c08a;
- --line: rgba(233, 228, 214, 0.14);
- --panel: rgba(233, 228, 214, 0.05);
+ --line: rgba(200, 222, 248, 0.14);
+ --panel: rgba(200, 222, 248, 0.05);
  --serif: 'Spectral', Georgia, serif;
  --cn: 'NotoSerifSCsub', 'Songti SC', 'Noto Serif SC', serif;
  --mono: 'PlexMono', ui-monospace, 'SF Mono', Menlo, monospace;

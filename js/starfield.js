@@ -1,4 +1,7 @@
-/* v6 sky: the gaze model. no rotation axis, no fisheye. the world is a plane ~1.7x the
+/* v9 sky: the anime frame (deep navy, a luminous blue galaxy, white-hot stars with cyan rims,
+ serif labels that glow) on top of the v6 gaze model. v6 notes follow.
+
+ v6 sky: the gaze model. no rotation axis, no fisheye. the world is a plane ~1.7x the
  viewport in each dimension, centered on polaris; every star and constellation gets a
  STATIC world position (the old theta-orbit rest poses, spread further into the extra
  world margin so panning toward an edge reveals content). the camera pans opposite the
@@ -177,9 +180,10 @@
   return a + (b - a) * fy;
  }
  var MW_OCTAVES = 5;
- function fbm(x, y) {
+ function fbm(x, y, octaves) {
   var amp = 0.55, freq = 1, sum = 0, norm = 0;
-  for (var o = 0; o < MW_OCTAVES; o++) {
+  var n = octaves || MW_OCTAVES;
+  for (var o = 0; o < n; o++) {
    sum += amp * valueNoise2D(x * freq, y * freq);
    norm += amp;
    amp *= 0.54; freq *= 2.13; /* slightly irregular lacunarity/persistence so the octaves don't stack into an obviously self-similar pattern */
@@ -206,7 +210,7 @@
  var MW_ANGLE = -0.58;
  var MW_DIR_X = Math.cos(MW_ANGLE), MW_DIR_Y = Math.sin(MW_ANGLE);
  var MW_PERP_X = -Math.sin(MW_ANGLE), MW_PERP_Y = Math.cos(MW_ANGLE);
- var BAND_SIGMA = 104; /* perpendicular half-width of the overall band envelope — ~45% of the original 230; the architect's visual review called the wider band "storm haze" dominating the frame, this narrows it to a proper river */
+ var BAND_SIGMA = 150; /* perpendicular half-width of the overall band envelope — ~45% of the original 230; the architect's visual review called the wider band "storm haze" dominating the frame, this narrows it to a proper river */
  var MW_SCALE_ALONG = 340, MW_SCALE_PERP = 130; /* fbm feature scale, anisotropic so cloud structure elongates along the band rather than reading as isotropic static */
 
  /* the Great Rift: a single meandering dark dust lane along the band's spine, carved out of the
@@ -225,6 +229,17 @@
    widthBase: 50 + rng() * 18,
   };
  })();
+ /* the rift's width jitter is a 1-D function of `along` only, so it's tabulated once (4px steps
+  over the whole generation extent) instead of costing a full fbm() per pixel in the mw bake. */
+ var RIFT_WJ_STEP = 4, RIFT_WJ = (function () {
+  var n = Math.ceil(GEN_HALF_W * 2 / RIFT_WJ_STEP) + 2, t = new Float32Array(n);
+  for (var i = 0; i < n; i++) t[i] = 0.72 + 0.5 * fbm((i * RIFT_WJ_STEP - GEN_HALF_W) / 900 + 40, 11);
+  return t;
+ })();
+ function riftWidthJit(along) {
+  var i = Math.round((along + GEN_HALF_W) / RIFT_WJ_STEP);
+  return RIFT_WJ[i < 0 ? 0 : i >= RIFT_WJ.length ? RIFT_WJ.length - 1 : i];
+ }
  function riftCenterline(along) {
   var t = along / 480;
   return RIFT.a1 * Math.sin(t * RIFT.f1 + RIFT.p1) + RIFT.a2 * Math.sin(t * RIFT.f2 + RIFT.p2);
@@ -235,13 +250,21 @@
   var bandEnv = Math.exp(-(perp * perp) / (2 * BAND_SIGMA * BAND_SIGMA));
   var neb = fbm(along / MW_SCALE_ALONG, perp / MW_SCALE_PERP);
   var edgeFade = 1 - smooth01((Math.abs(along) - GEN_HALF_W * 0.72) / (GEN_HALF_W * 0.26)); /* fades the field out before the fixed generation extent's own edge, so a viewport wide enough to approach GEN_HALF_W never shows a hard boundary */
-  var widthJit = 0.72 + 0.5 * fbm(along / 900 + 40, 11);
+  var widthJit = riftWidthJit(along);
   var rc = riftCenterline(along);
   var renv = Math.exp(-Math.pow(along - RIFT.center, 2) / (2 * RIFT.halfLen * RIFT.halfLen));
   var rw = RIFT.widthBase * widthJit;
   var rift = renv * Math.exp(-Math.pow(perp - rc, 2) / (2 * rw * rw));
-  var bright = bandEnv * (0.32 + 0.68 * neb) * edgeFade;
-  bright *= (1 - 0.82 * rift); /* carve the dark lane — dust never quite fully occludes, same as the real thing */
+  /* v9: the cloud gets a contrast curve (so it reads as clumps and wisps, not an even haze) plus
+   a finer wispy octave, and the band envelope gains a wide, faint second gaussian so the blue
+   diffuses well beyond the river itself — that spill is most of what makes the reference frame
+   feel blue rather than black-with-a-stripe. */
+  var nebC = smooth01((neb - 0.26) / 0.62);
+  var wisp = fbm(along / (MW_SCALE_ALONG * 0.22) + 7.3, perp / (MW_SCALE_PERP * 0.22) - 3.1, 3); /* 3 octaves: this term only supplies the fine structure, the low frequencies are already in `neb`; keeps the per-layout bake cost close to v6 */
+  var wispC = smooth01((wisp - 0.3) / 0.6);
+  var spill = Math.exp(-(perp * perp) / (2 * (BAND_SIGMA * 2.4) * (BAND_SIGMA * 2.4)));
+  var bright = (bandEnv * (0.18 + 0.82 * nebC) * (0.55 + 0.65 * wispC) + spill * 0.3 * (0.4 + 0.6 * neb)) * edgeFade;
+  bright *= (1 - 0.62 * rift); /* carve the dark lane — dust never quite fully occludes, same as the real thing */
   return { bright: Math.max(0, bright), perp: perp, along: along, rift: rift, bandEnv: bandEnv };
  }
 
@@ -264,7 +287,10 @@
    var bf = coupling * f.bright + (1 - coupling) * f.bandEnv;
    if (rng() > floor + (1 - floor) * bf) continue;
    var b = Math.pow(rng(), opt.pow);
-   var halo = !!(opt.halo && b > 0.93);
+   var haloAt = opt.haloAt != null ? opt.haloAt : 0.93;
+   var halo = !!(opt.halo && b > haloAt);
+   var live = !!(halo && b > (opt.liveAt != null ? opt.liveAt : 0.985)); /* the tiny live-drawn sliver (real twinkle); every other halo is baked */
+   var tr = rng();
    out.push({
     x: x, y: y,
     size: (opt.sizeMin + b * (opt.sizeMax - opt.sizeMin)) * (0.88 + rng() * 0.24),
@@ -272,8 +298,9 @@
     ph: rng() * Math.PI * 2,
     sp: 0.4 + rng() * 1.1,
     tw: opt.tw || 0,
-    tint: rng() < 0.9 ? '232,230,221' : rng() < 0.7 ? '216,192,138' : '160,190,230',
+    tint: tr < 0.3 ? '234,245,255' : tr < 0.75 ? '140,225,255' : tr < 0.95 ? '110,178,255' : '255,236,208', /* v9 anime palette: white, cyan-white, blue, a rare warm one */
     halo: halo,
+    live: live,
    });
   }
   return out;
@@ -288,17 +315,21 @@
   lower-count sky; the old mobile/desktop count split is gone for the same reason. */
  var SKY = { ultraFar: [], far: [], mid: [], near: [], nearBulk: [], nearBright: [] };
  function buildSkyContent() {
-  SKY.ultraFar = genLayer(2600, { sizeMin: .12, sizeMax: .26, alphaMin: .05, alphaMax: .13, pow: 3.4, floor: .10, coupling: .7 });
+  SKY.ultraFar = genLayer(2600, { sizeMin: .14, sizeMax: .3, alphaMin: .08, alphaMax: .2, pow: 3.4, floor: .10, coupling: .7 });
   /* far/mid alphaMin/alphaMax nudged up (~+15-20%, floor untouched so the off-band sky stays
    near-black) per the architect's "grain first" note: with the cloud opacity cut way down
    (see buildMilkyWay), the band needs to read as dense faint stars with cloud structure behind
    them, not the other way around. */
-  SKY.far = genLayer(8400, { sizeMin: .30, sizeMax: .64, alphaMin: .20, alphaMax: .42, pow: 2.3, floor: .16, coupling: 1 });
-  SKY.mid = genLayer(5800, { sizeMin: .34, sizeMax: .92, alphaMin: .25, alphaMax: .55, pow: 2.6, floor: .20, coupling: 1 });
-  var nearAll = genLayer(3700, { sizeMin: .38, sizeMax: 2.0, alphaMin: .30, alphaMax: .84, pow: 3.1, tw: .26, halo: true, floor: .55, coupling: .45 });
+  /* v9 (the anime sky): every layer lifted in size and alpha so the field reads as a dense,
+   bright, blue-white sky rather than grain on black; mid and near both carry halos now (a
+   white-hot core inside a cyan rim, see prerenderLayer/drawDust), baked except for near's
+   brightest ~1.5% (`live`) which still twinkles per-star. */
+  SKY.far = genLayer(8400, { sizeMin: .34, sizeMax: .8, alphaMin: .24, alphaMax: .6, pow: 2.3, floor: .16, coupling: 1 });
+  SKY.mid = genLayer(5800, { sizeMin: .55, sizeMax: 1.7, alphaMin: .35, alphaMax: .9, pow: 2.6, floor: .22, coupling: 1, halo: true, haloAt: .86, liveAt: 2 });
+  var nearAll = genLayer(3700, { sizeMin: .7, sizeMax: 3.1, alphaMin: .5, alphaMax: 1, pow: 2.8, tw: .26, halo: true, haloAt: .74, liveAt: .985, floor: .55, coupling: .45 });
   SKY.near = nearAll;
   SKY.nearBulk = []; SKY.nearBright = [];
-  for (var i = 0; i < nearAll.length; i++) (nearAll[i].halo ? SKY.nearBright : SKY.nearBulk).push(nearAll[i]);
+  for (var i = 0; i < nearAll.length; i++) (nearAll[i].live ? SKY.nearBright : SKY.nearBulk).push(nearAll[i]);
  }
 
  /* ultra-far/far/mid/near-bulk: baked once per layout() onto world-sized offscreen canvases (one
@@ -332,7 +363,7 @@
   only near's brightest ~2% (SKY.nearBright, the ones with halo sprites) stay live-drawn per-star
   for real twinkle; see drawDust below. */
  var BAKE_MIN = 0.3, BAKE_MAX = 0.85;
- var PX_BUDGET = { ultraFar: 550000, far: 900000, mid: 1100000, near: 1350000, mw: 550000 }; /* ~4.45M px total (~18MB @ 4B/px) offscreen, at MAIN_PX_REF main-canvas size — see budgetScaleFor() for why this also backs off further on very large/high-dpr viewports */
+ var PX_BUDGET = { ultraFar: 550000, far: 900000, mid: 1100000, near: 1350000, mw: 330000 }; /* mw budget cut 550k -> 330k in v9: the nebula field costs two fbm() calls per pixel now and is a smooth object anyway, so it can afford the softer bake — measured ~2x cheaper per layout() with no visible loss */ /* ~4.45M px total (~18MB @ 4B/px) offscreen, at MAIN_PX_REF main-canvas size — see budgetScaleFor() for why this also backs off further on very large/high-dpr viewports */
  var MAIN_PX_REF = 1300000; /* ~1440x900: the viewport size this budget was profiled against */
  function budgetScaleFor() {
   /* the cliff empirically also gets worse as the MAIN visible canvas's own backing store
@@ -360,10 +391,28 @@
   canvas.height = Math.max(1, Math.round(h * bakeScale));
   cctx.setTransform(bakeScale, 0, 0, bakeScale, 0, 0); /* star math below stays in full CSS-world units; the transform is what actually shrinks the backing store */
   cctx.clearRect(0, 0, w, h);
+  var grads = buildHaloGradients(cctx); /* per-bake-context unit gradients (a handful of objects per layout(), not per star) */
   for (var i = 0; i < stars.length; i++) {
    var s = stars[i];
    var cx = s.x + worldRef.halfW, cy = s.y + worldRef.halfH; /* local (pole-relative) -> canvas pixel; pole itself never enters this math, which is exactly what keeps content pixel-stable across resizes */
    if (cx < -4 || cx > w + 4 || cy < -4 || cy > h + 4) continue; /* the fixed generation extent can exceed a narrow WORLD (e.g. mobile); skip what won't be visible rather than paying for it */
+   if (s.halo) {
+    /* baked halo: the same white-core/colored-rim sprite drawDust paints live, minus twinkle.
+     rasterized once here so the per-frame cost of hundreds of glowing stars is one drawImage */
+    var hr = s.size * HALO_R;
+    cctx.save();
+    cctx.translate(cx, cy); cctx.scale(hr, hr);
+    cctx.globalAlpha = s.alpha;
+    cctx.beginPath(); cctx.arc(0, 0, 1, 0, 7);
+    cctx.fillStyle = grads[s.tint]; cctx.fill();
+    cctx.restore();
+    cctx.globalAlpha = 1;
+    cctx.beginPath();
+    cctx.arc(cx, cy, s.size * 0.85, 0, 7);
+    cctx.fillStyle = 'rgba(' + CORE_TINT + ',' + Math.min(1, s.alpha * 1.1) + ')';
+    cctx.fill();
+    continue;
+   }
    cctx.beginPath();
    cctx.arc(cx, cy, s.size, 0, 7);
    cctx.fillStyle = 'rgba(' + s.tint + ',' + s.alpha + ')';
@@ -398,16 +447,21 @@
   costs — the signature of GC pressure from reallocating ~15-80 gradient objects (each with 3
   addColorStop calls) every frame, not of the fill() itself being slow. building the gradient(s)
   once and reusing them via the transform, below, removes that allocation entirely. */
- var HALO_TINTS = ['232,230,221', '216,192,138', '160,190,230'];
+ var HALO_TINTS = ['234,245,255', '140,225,255', '110,178,255', '255,236,208'];
+ var CORE_TINT = '250,253,255'; /* every halo star has the same white-hot center; only the rim carries the tint */
+ var HALO_R = 2.7; /* halo radius as a multiple of the core radius: compact — a tight glow around a bright point, not a bloom */
  var haloGrad = {};
- function buildHaloGradients() {
+ function buildHaloGradients(c) {
+  var out = {};
   HALO_TINTS.forEach(function (tint) {
-   var g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
-   g.addColorStop(0, 'rgba(' + tint + ',.5)');
-   g.addColorStop(0.4, 'rgba(' + tint + ',.2)');
+   var g = c.createRadialGradient(0, 0, 0, 0, 0, 1);
+   g.addColorStop(0, 'rgba(' + CORE_TINT + ',.95)');
+   g.addColorStop(0.36, 'rgba(' + tint + ',.6)');
+   g.addColorStop(0.68, 'rgba(' + tint + ',.16)');
    g.addColorStop(1, 'rgba(' + tint + ',0)');
-   haloGrad[tint] = g;
+   out[tint] = g;
   });
+  return out;
  }
 
  /* live dust layer draw (near's brightest sliver only): `pf` (pan factor) is how much of the
@@ -427,7 +481,7 @@
    if (s.halo) {
     var hgrad = haloGrad[s.tint];
     if (hgrad) {
-     var hr = rr * 3.5;
+     var hr = rr * HALO_R;
      ctx.save();
      ctx.translate(sx, sy); ctx.scale(hr, hr);
      ctx.globalAlpha = s.alpha * tw * bgMul;
@@ -438,8 +492,8 @@
     }
    }
    ctx.beginPath();
-   ctx.arc(sx, sy, rr, 0, 7);
-   ctx.fillStyle = 'rgba(' + s.tint + ',' + (s.alpha * tw * bgMul) + ')';
+   ctx.arc(sx, sy, s.halo ? rr * 0.85 : rr, 0, 7);
+   ctx.fillStyle = 'rgba(' + (s.halo ? CORE_TINT : s.tint) + ',' + Math.min(1, s.alpha * tw * bgMul * (s.halo ? 1.1 : 1)) + ')';
    ctx.fill();
   }
  }
@@ -463,7 +517,11 @@
    the color reads as "slight warm tint right at the spine" rather than warm-grey-brown
    everywhere; the core-tint falloff (coreW below) is also tightened (0.85->0.5 of BAND_SIGMA)
    so that tint stays tight to the spine instead of spreading across the whole band width. */
-  var WARM = [212, 203, 194], COOL = [199, 204, 211];
+  /* v9 (the anime sky): the galaxy is blue now. three-stop ramp by local brightness — deep
+   blue in the faint spill, saturated sky-blue through the body of the band, and a pale
+   cyan-white only in the brightest clumps — at a real opacity, so the band is a luminous
+   object the stars sit in, not a grey smudge behind them. */
+  var DEEP = [16, 58, 128], BODY = [40, 118, 208], HOT = [90, 164, 240];
   for (var py = 0; py < h; py++) {
    var ly = (py / bakeScale) - worldRef.halfH;
    for (var px = 0; px < w; px++) {
@@ -471,11 +529,12 @@
     var f = mwField(lx, ly);
     if (f.bright <= 0.004) continue; /* leave fully transparent — ImageData is zero-inited */
     var idx = (py * w + px) * 4;
-    var coreW = smooth01(1 - Math.abs(f.perp) / (BAND_SIGMA * 0.5));
-    data[idx] = WARM[0] * coreW + COOL[0] * (1 - coreW);
-    data[idx + 1] = WARM[1] * coreW + COOL[1] * (1 - coreW);
-    data[idx + 2] = WARM[2] * coreW + COOL[2] * (1 - coreW);
-    data[idx + 3] = Math.round(Math.min(0.9, f.bright) * 0.12 * 255); /* was .30 (~+30% peak lift, "storm haze"); cut to .12 (~0.4x, ~+10% peak lift) per architect review — the sky outside the band should stay near-black */
+    var b = Math.min(1, f.bright);
+    var t1 = smooth01(b / 0.6), t2 = smooth01((b - 0.82) / 0.3);
+    data[idx] = (DEEP[0] + (BODY[0] - DEEP[0]) * t1) * (1 - t2) + HOT[0] * t2;
+    data[idx + 1] = (DEEP[1] + (BODY[1] - DEEP[1]) * t1) * (1 - t2) + HOT[1] * t2;
+    data[idx + 2] = (DEEP[2] + (BODY[2] - DEEP[2]) * t1) * (1 - t2) + HOT[2] * t2;
+    data[idx + 3] = Math.round(Math.pow(b, 0.8) * 0.52 * 255); /* was .30 (~+30% peak lift, "storm haze"); cut to .12 (~0.4x, ~+10% peak lift) per architect review — the sky outside the band should stay near-black */
    }
   }
   mwWorldCtx.putImageData(img, 0, 0);
@@ -494,16 +553,16 @@
 
   /* horizon glow: darkest at top, a ~4%-luminance lift toward the bottom edge. never flat black. */
   var vgrad = mwCtx.createLinearGradient(0, 0, 0, H);
-  vgrad.addColorStop(0, 'rgba(200,210,230,0)');
-  vgrad.addColorStop(0.55, 'rgba(200,210,230,0)');
-  vgrad.addColorStop(1, 'rgba(205,215,232,.045)');
+  vgrad.addColorStop(0, 'rgba(60,120,200,0)');
+  vgrad.addColorStop(0.5, 'rgba(60,120,200,0)');
+  vgrad.addColorStop(1, 'rgba(70,135,215,.09)');
   mwCtx.fillStyle = vgrad;
   mwCtx.fillRect(0, 0, W, H);
 
   /* gentle radial vignette */
   var vig = mwCtx.createRadialGradient(cx, cy, 0, cx, cy, Math.hypot(W, H) * 0.62);
   vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(0,0,0,.12)');
+  vig.addColorStop(1, 'rgba(0,4,14,.18)');
   mwCtx.fillStyle = vig;
   mwCtx.fillRect(0, 0, W, H);
  }
@@ -690,7 +749,7 @@
   var sizeMul = (zoomed && activeId === c.id) ? 1.3 : 1;
 
   if (c.lines && c.lines.length && pts.length > 1) {
-   ctx.strokeStyle = 'rgba(216,192,138,' + (0.38 * vis) + ')';
+   ctx.strokeStyle = 'rgba(190,220,255,' + (0.36 * vis) + ')';
    ctx.lineWidth = 1;
    for (var li = 0; li < c.lines.length; li++) {
     var p0 = pts[c.lines[li][0]], p1 = pts[c.lines[li][1]];
@@ -700,21 +759,25 @@
 
   for (var i = 0; i < pts.length; i++) {
    var p = pts[i];
-   var memberSize = (c.sizes ? c.sizes[i] : 1.9) * sizeMul;
+   var memberSize = (c.sizes ? c.sizes[i] : 1.9) * 1.25 * sizeMul; /* v9: the field stars got bigger, the asterism members keep a step ahead of them */
    if (c.specialIdx === i) {
-    var glow = (9 + 2 * Math.sin(now / 700)) * sizeMul;
+    var glow = (10 + 2 * Math.sin(now / 700)) * sizeMul;
     ctx.beginPath(); ctx.arc(p.x, p.y, glow, 0, 7);
-    ctx.fillStyle = 'rgba(138,212,207,' + (0.16 * vis) + ')'; ctx.fill();
+    ctx.fillStyle = 'rgba(150,235,255,' + (0.2 * vis) + ')'; ctx.fill();
     ctx.beginPath(); ctx.arc(p.x, p.y, (2.7 + vis * 0.8) * sizeMul, 0, 7);
-    ctx.fillStyle = 'rgba(138,212,207,' + (0.55 + 0.35 * vis * (0.75 + 0.25 * Math.sin(now / 700))) + ')';
+    ctx.fillStyle = 'rgba(190,245,255,' + (0.6 + 0.35 * vis * (0.75 + 0.25 * Math.sin(now / 700))) + ')';
     ctx.fill();
    } else if (c.brightIdx === i) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, (3.4 + vis) * 2.2 * sizeMul, 0, 7);
+    ctx.fillStyle = 'rgba(170,230,255,' + (0.14 + 0.1 * vis) + ')'; ctx.fill();
     ctx.beginPath(); ctx.arc(p.x, p.y, (2.4 + vis * 0.9) * sizeMul, 0, 7);
-    ctx.fillStyle = 'rgba(240,236,222,' + (0.55 + 0.4 * vis) + ')'; ctx.fill();
+    ctx.fillStyle = 'rgba(250,253,255,' + (0.6 + 0.4 * vis) + ')'; ctx.fill();
    } else {
-    var tint = (c.warmIdx === i) ? '233,220,196' : '233,228,214';
+    var tint = (c.warmIdx === i) ? '255,236,208' : '240,248,255';
+    ctx.beginPath(); ctx.arc(p.x, p.y, memberSize * 2.2, 0, 7);
+    ctx.fillStyle = 'rgba(150,225,255,' + (0.1 + 0.14 * vis) + ')'; ctx.fill();
     ctx.beginPath(); ctx.arc(p.x, p.y, memberSize, 0, 7);
-    ctx.fillStyle = 'rgba(' + tint + ',' + (0.5 + 0.45 * vis) + ')';
+    ctx.fillStyle = 'rgba(' + tint + ',' + (0.55 + 0.45 * vis) + ')';
     ctx.fill();
    }
   }
@@ -724,12 +787,20 @@
   var lx = cenScreen.x + (c.align === 'right' ? -c.rad * 0.15 : c.rad * 0.15) * CAM.scale;
   var ly = cenScreen.y + c.labelDY * CAM.scale;
   ctx.textAlign = c.align;
-  ctx.font = '13px PlexMono, monospace';
-  ctx.fillStyle = 'rgba(180,184,196,' + la + ')';
+  /* v9: the name is set in the serif with a soft cyan glow (the reference frame's credit-roll
+   look); the tag beneath stays mono, no glow, so the hierarchy is type, not size. */
+  ctx.save();
+  ctx.font = '300 16px Spectral, serif';
+  ctx.shadowColor = 'rgba(140,210,255,' + (0.7 * la) + ')'; ctx.shadowBlur = 9;
+  ctx.fillStyle = 'rgba(236,244,255,' + la + ')';
   ctx.fillText(c.name, lx, ly);
+  ctx.restore();
+  ctx.save();
   ctx.font = '10.5px PlexMono, monospace';
-  ctx.fillStyle = 'rgba(86,91,107,' + la + ')';
-  ctx.fillText(c.sub, lx, ly + 15);
+  ctx.shadowColor = 'rgba(2,11,26,' + (0.9 * la) + ')'; ctx.shadowBlur = 3; /* a whisper of dark under the tag so it survives sitting on the bright part of the band */
+  ctx.fillStyle = 'rgba(132,158,194,' + la + ')';
+  ctx.fillText(c.sub, lx, ly + 16);
+  ctx.restore();
  }
 
  function drawPolaris(now) {
@@ -737,13 +808,13 @@
   if (p.x < -10 || p.x > W + 10 || p.y < -10 || p.y > H + 10) return;
   var tw = still ? 1 : 0.85 + 0.15 * Math.sin(now / 900);
   var s = Math.max(CAM.scale, 0.6);
-  ctx.beginPath(); ctx.arc(p.x, p.y, 5 * s, 0, 7);
-  ctx.fillStyle = 'rgba(240,236,222,.15)'; ctx.fill();
-  ctx.beginPath(); ctx.arc(p.x, p.y, 1.9 * s, 0, 7);
-  ctx.fillStyle = 'rgba(240,236,222,' + (0.75 + 0.25 * tw) + ')'; ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 7 * s, 0, 7);
+  ctx.fillStyle = 'rgba(170,230,255,.16)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x, p.y, 2.1 * s, 0, 7);
+  ctx.fillStyle = 'rgba(250,253,255,' + (0.75 + 0.25 * tw) + ')'; ctx.fill();
   if (frozen) {
-   ctx.beginPath(); ctx.arc(p.x, p.y, 9 * s, 0, 7);
-   ctx.strokeStyle = 'rgba(216,192,138,.38)'; ctx.lineWidth = 1;
+   ctx.beginPath(); ctx.arc(p.x, p.y, 10 * s, 0, 7);
+   ctx.strokeStyle = 'rgba(190,220,255,.4)'; ctx.lineWidth = 1;
    ctx.stroke();
   }
  }
@@ -803,12 +874,12 @@
    var spd = Math.hypot(mt.vx, mt.vy) || 1, ux = mt.vx / spd, uy = mt.vy / spd, tail = 160 * CAM.scale;
    var hx = head.x, hy = head.y;
    var grad = ctx.createLinearGradient(hx - ux * tail, hy - uy * tail, hx, hy);
-   grad.addColorStop(0, 'rgba(216,192,138,0)');
-   grad.addColorStop(1, 'rgba(233,228,214,' + (0.75 * env) + ')');
+   grad.addColorStop(0, 'rgba(170,230,255,0)');
+   grad.addColorStop(1, 'rgba(240,248,255,' + (0.8 * env) + ')');
    ctx.strokeStyle = grad; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
    ctx.beginPath(); ctx.moveTo(hx - ux * tail, hy - uy * tail); ctx.lineTo(hx, hy); ctx.stroke();
    ctx.beginPath(); ctx.arc(hx, hy, 1.8, 0, 7);
-   ctx.fillStyle = 'rgba(240,236,222,' + (0.9 * env) + ')'; ctx.fill();
+   ctx.fillStyle = 'rgba(250,253,255,' + (0.95 * env) + ')'; ctx.fill();
   }
  }
 
@@ -836,7 +907,7 @@
   var wx = satellite.x0 + satellite.vx * el, wy = satellite.y0 + satellite.vy * el;
   var p = baseToScreen(wx, wy);
   ctx.beginPath(); ctx.arc(p.x, p.y, 1.1, 0, 7);
-  ctx.fillStyle = 'rgba(210,214,222,' + (0.4 * env) + ')';
+  ctx.fillStyle = 'rgba(200,220,245,' + (0.45 * env) + ')';
   ctx.fill();
  }
 
@@ -880,8 +951,8 @@
  }
 
  function updateGaze(now, dt) {
-  if (still) { CAM.cx = pole.x; CAM.cy = pole.y; return; } /* prefers-reduced-motion / shot mode: static camera, no wander */
-  if (zoomed || frozen) return; /* the fly-in system, or the freeze hold/tween, owns CAM while either is active */
+  if (zoomed || frozen) return; /* the fly-in system, or the freeze hold/tween, owns CAM while either is active — including under `still`, where the zoom target was set immediately by tweenCam() and must not be snapped back to the pole below (that snap-back is what used to zoom reduced-motion users, and every ?shot=<module> capture, into the wrong patch of sky) */
+  if (still) { CAM.cx = pole.x; CAM.cy = pole.y; return; } /* prefers-reduced-motion / shot mode: static camera, no wander */ /* the fly-in system, or the freeze hold/tween, owns CAM while either is active */
 
   if (touch && ptrDragging) {
    CAM.cx = pole.x + rubber(touchRawX, WORLD.marginX);
@@ -1100,7 +1171,7 @@
   },
  };
 
- buildHaloGradients();
+ haloGrad = buildHaloGradients(ctx);
  buildSkyContent(); /* the whole seeded sky, generated exactly once — see the comment above buildSkyContent() */
  layout();
  requestAnimationFrame(frame);

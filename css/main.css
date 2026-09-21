@@ -1,4 +1,4 @@
-/* xhyumiracle.com v5 · the gaze model, a realer sky, a quiet corner shell */
+/* xhyumiracle.com v9 · the anime sky: deep navy, a blue galaxy, glowing serif — on the v5 gaze model */
 
 @font-face { font-family: 'Spectral'; src: url('../fonts/spectral-300.woff2') format('woff2'); font-weight: 300; font-display: swap; }
 @font-face { font-family: 'Spectral'; src: url('../fonts/spectral-400.woff2') format('woff2'); font-weight: 400; font-display: swap; }
@@ -8,13 +8,15 @@
 @font-face { font-family: 'NotoSerifSCsub'; src: url('../fonts/notoserif-sc-subset.woff2?v=11') format('woff2'); font-weight: 500; font-display: swap; }
 
 :root {
- --bg: #070a12;
- --ink: #e9e4d6;
- --dim: #8b90a0;
- --faint: #565b6b;
+ --bg: #020b1a;
+ --bg-lift: #061c3a;
+ --ink: #e9f1fb;
+ --dim: #94a6c0;
+ --faint: #5e6f8a;
  --gold: #d8c08a;
- --cyan: #8ad4cf;
- --line: rgba(233, 228, 214, 0.14);
+ --cyan: #9fe6ff;
+ --line: rgba(200, 222, 248, 0.14);
+ --glow: 0 0 6px rgba(160, 220, 255, .55), 0 0 18px rgba(110, 180, 255, .32); /* the reference frame's credit-roll text: white with a cyan halo */
  --serif: 'Spectral', 'Songti SC', Georgia, serif;
  --cn: 'NotoSerifSCsub', 'Songti SC', 'Noto Serif SC', serif;
  --mono: 'PlexMono', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -23,14 +25,14 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
 body {
- background: var(--bg);
+ background: var(--bg) linear-gradient(215deg, var(--bg) 0%, #03112a 58%, var(--bg-lift) 100%) fixed; /* darkest top-right, the blue lifts toward the lower-left where the galaxy lives */
  color: var(--ink);
  font-family: var(--serif);
  font-weight: 300;
  line-height: 1.6;
  overflow: hidden; /* the sky is the page */
 }
-::selection { background: rgba(216, 192, 138, 0.25); }
+::selection { background: rgba(140, 200, 255, 0.28); }
 a { color: var(--gold); text-decoration: none; border-bottom: 1px solid rgba(216,192,138,.3); transition: border-color .25s; }
 a:hover { border-bottom-color: var(--gold); }
 button { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
@@ -42,8 +44,9 @@ button { background: none; border: 0; color: inherit; font: inherit; cursor: poi
 #sky { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; transition: opacity 1s ease; touch-action: none; }
 #sky.dim { opacity: .2; }
 .grain {
- position: fixed; inset: -50%; width: 200%; height: 200%; z-index: 3; pointer-events: none; opacity: .05;
+ position: fixed; inset: -50%; width: 200%; height: 200%; z-index: 3; pointer-events: none; opacity: .035;
  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+ mix-blend-mode: screen;
 }
 
 /* chrome corners (all above canvas) */
@@ -70,7 +73,7 @@ body.zoomed .id-block { opacity: .22; pointer-events: none; }
 .avatar-popover {
  position: absolute; top: -6px; left: calc(100% + 46px); z-index: 5;
  width: max-content; max-width: min(340px, calc(100vw - 40px));
- background: rgba(10, 14, 25, .85); backdrop-filter: blur(10px);
+ background: rgba(4, 12, 28, .85); backdrop-filter: blur(10px);
  border: 1px solid var(--line); border-radius: 10px;
  padding: 12px 14px;
  opacity: 0; transform: translateY(6px); transition: opacity .2s ease, transform .2s ease;
@@ -81,15 +84,15 @@ body.zoomed .id-block { opacity: .22; pointer-events: none; }
 @media (max-width: 720px) {
   .avatar-popover { top: calc(100% + 12px); left: -6px; }
 }
-.avatar-popover-cn { color: var(--gold); letter-spacing: .14em; line-height: 1.6; }
+.avatar-popover-cn { color: #f5f9ff; letter-spacing: .18em; line-height: 1.6; text-shadow: var(--glow); }
 .avatar-popover-en { margin-top: .55rem; font-style: italic; font-size: .8rem; color: var(--dim); line-height: 1.5; }
 
-.name { font-size: clamp(1.4rem, 2.2vw, 1.9rem); font-weight: 400; letter-spacing: .03em; margin-top: .5rem; white-space: nowrap; }
+.name { font-size: clamp(1.5rem, 2.3vw, 2rem); font-weight: 300; letter-spacing: .1em; margin-top: .5rem; white-space: nowrap; color: #f5f9ff; text-shadow: var(--glow); }
 .directions { color: var(--dim); opacity: 1; letter-spacing: .1em; font-size: .74rem; margin-top: .9rem; }
 
 .legend {
  top: 6vh; right: 4vw; width: min(340px, 30vw);
- background: rgba(10, 14, 25, 0.55);
+ background: rgba(4, 12, 28, 0.55);
  border: 1px solid var(--line); border-radius: 10px;
  padding: 14px 10px 8px; backdrop-filter: blur(6px);
 }
@@ -104,7 +107,8 @@ body.zoomed .id-block { opacity: .22; pointer-events: none; }
 .lr-key { color: var(--gold); width: 1.6em; flex: none; }
 .legend-row.sc .lr-key { color: var(--cyan); }
 .legend-row.dim .lr-key { color: var(--faint); }
-.lr-name { display: block; font-size: .92rem; color: var(--ink); line-height: 1.3; }
+.lr-name { display: block; font-size: .95rem; color: var(--ink); line-height: 1.3; letter-spacing: .03em; transition: text-shadow .3s; }
+.legend-row:hover .lr-name, .legend-row:focus .lr-name { text-shadow: var(--glow); }
 .legend-row.dim .lr-name { color: var(--dim); }
 .lr-tags { display: block; font-size: .62rem; color: var(--faint); margin-top: 2px; letter-spacing: .08em; }
 
@@ -118,7 +122,7 @@ body.zoomed .foot { opacity: .12; pointer-events: none; }
  position: fixed; z-index: 5;
  opacity: 0; pointer-events: none;
  transition: opacity .3s ease, color .2s, border-color .2s;
- border: 1px solid var(--line); background: rgba(10, 14, 25, .5); backdrop-filter: blur(4px);
+ border: 1px solid var(--line); background: rgba(4, 12, 28, .5); backdrop-filter: blur(4px);
  color: var(--dim);
 }
 body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
@@ -149,7 +153,7 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
 .mod[hidden] { display: none; }
 .mod:focus { outline: none; }
 
-.panel-title { font-weight: 400; font-size: clamp(1.15rem, 2vw, 1.45rem); line-height: 1.4; margin-bottom: 1.1rem; }
+.panel-title { font-weight: 300; font-size: clamp(1.15rem, 2vw, 1.45rem); line-height: 1.4; margin-bottom: 1.1rem; letter-spacing: .04em; text-shadow: var(--glow); }
 .sc-hook { font-size: clamp(1.05rem, 1.7vw, 1.3rem); line-height: 1.5; margin-bottom: 1.1rem; color: var(--ink); }
 
 /* subsections: mono path header + evidence list, repeated per facet */
@@ -216,7 +220,7 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
  position: fixed; right: 24px; bottom: 24px; z-index: 9;
  width: 42px; height: 42px; border-radius: 50%;
  display: flex; align-items: center; justify-content: center;
- background: rgba(10, 14, 25, .55); border: 1px solid var(--line); backdrop-filter: blur(6px);
+ background: rgba(4, 12, 28, .55); border: 1px solid var(--line); backdrop-filter: blur(6px);
  color: var(--faint); font-size: .78rem; letter-spacing: .02em;
  transition: opacity .2s ease, color .2s, border-color .2s;
 }
@@ -230,7 +234,7 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
  position: fixed; right: 24px; bottom: 24px; z-index: 9;
  width: min(440px, 42vw); height: min(320px, 42vh);
  display: flex; flex-direction: column;
- background: rgba(10, 14, 25, .85); backdrop-filter: blur(10px);
+ background: rgba(4, 12, 28, .85); backdrop-filter: blur(10px);
  border: 1px solid var(--line); border-radius: 10px;
  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
  opacity: 0; transform: translateY(10px) scale(.98); transition: opacity .22s ease, transform .22s ease;
