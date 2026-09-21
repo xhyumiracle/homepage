@@ -501,6 +501,13 @@
  }
  function setCamImmediate(t) { CAM.yaw = t.yaw; CAM.pitch = t.pitch; CAM.F = t.F; camAnim = null; }
  function tweenCam(target, dur, onDone) {
+  /* yaw is an angle: take the short way round. the rest pose sits at 240 degrees while
+   targetCamFor() solves in (-180, 180], so without this the fly-in swung the camera a full
+   turn through the whole sky ("跳跃好远") instead of the few degrees actually needed. */
+  var dy = target.yaw - CAM.yaw;
+  while (dy > Math.PI) dy -= 2 * Math.PI;
+  while (dy < -Math.PI) dy += 2 * Math.PI;
+  target = { yaw: CAM.yaw + dy, pitch: target.pitch, F: target.F };
   if (still || dur <= 0) { setCamImmediate(target); if (onDone) onDone(); return; }
   camAnim = { from: { yaw: CAM.yaw, pitch: CAM.pitch, F: CAM.F }, to: target, t0: performance.now(), dur: dur, onDone: onDone };
  }
@@ -571,8 +578,8 @@
    desiredX = (mouse.x - W / 2) * K; desiredY = (mouse.y - H / 2) * K;
   }
   var f = 1 - Math.exp(-dt / SPRING_TAU);
-  GAZE.cx += (clampGaze(desiredX) - GAZE.cx) * f;
-  GAZE.cy += (clampGaze(desiredY) - GAZE.cy) * f;
+  GAZE.cx = clampGaze(GAZE.cx + (clampGaze(desiredX) - GAZE.cx) * f);
+  GAZE.cy = clampGaze(GAZE.cy + (clampGaze(desiredY) - GAZE.cy) * f);
   applyGaze();
  }
 
@@ -583,7 +590,11 @@
  function frame(now) {
   if (document.hidden) { if (!still) requestAnimationFrame(frame); return; }
   var t0 = performance.now();
-  var dt = Math.min((now - lastT) / 1000, 0.1); lastT = now;
+  /* dt from performance.now(), not the rAF timestamp: the two clocks are not guaranteed to
+   agree at the first frame (headless and some vsync paths hand rAF a stamp behind, or on
+   another origin than, performance.now()), and a negative dt flips the spring's sign so the
+   gaze spirals off to thousands of pixels before it recovers. clamped to [0, 100ms]. */
+  var dt = Math.max(0, Math.min((t0 - lastT) / 1000, 0.1)); lastT = t0;
   updateCam(now);
   updateGaze(now, dt);
   mEqCam = eqToCamMatrix(CAM.yaw, CAM.pitch);
@@ -681,6 +692,7 @@
   isZoomed: function () { return zoomed; },
   perf: function () { return { avgMs: PERF.emaMs, samples: PERF.samples, stars: starCount, tex: texReady }; },
   tune: function (o) { for (var k in o) TUNE[k] = o[k]; if (still) repaint(); }, /* dev: Sky.tune({gain: 1.3}) */
+  cam: function () { return { yaw: CAM.yaw, pitch: CAM.pitch, F: CAM.F, rest: REST, gaze: GAZE, idle: gazeIdling, still: still, anim: !!camAnim }; }, /* dev: read the live camera */
   engine: 'webgl',
  };
 
