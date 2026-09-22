@@ -310,7 +310,9 @@
   'pwd  print current location',
   'cat <path>  print a file (also: cat ?)',
   'grep <kw> [path]  search file contents, file:line',
-  'echo <text>  fade text onto the sky',
+  'echo <text>  write text on the sky (it stays with the stars)',
+  'ufo  a visitor crosses the sky',
+  'shine  the universe flickers for you',
   'skill, skills  print the skills manifest',
   'whoami  who is this',
   'uptime  how long this has been running',
@@ -323,7 +325,7 @@
   'clear  clear this output',
   'exit  close this window',
  ];
- var KNOWN = ['help', '?', 'ls', 'cd', 'pwd', 'cat', 'grep', 'echo', 'skill', 'skills', 'whoami', 'uptime', 'sudo', 'reboot', 'sleep', 'shutdown', 'clear', 'exit', 'history', 'date'];
+ var KNOWN = ['help', '?', 'ls', 'cd', 'pwd', 'cat', 'grep', 'echo', 'ufo', 'shine', 'flicker', 'skill', 'skills', 'whoami', 'uptime', 'sudo', 'reboot', 'sleep', 'shutdown', 'clear', 'exit', 'history', 'date'];
 
  function lsCmd(arg) {
   var r = resolvePath(arg, cwd);
@@ -441,6 +443,8 @@
    case 'cat': catCmd(arg); break;
    case 'grep': grepCmd(arg); break;
    case 'echo': echoCmd(arg); break;
+   case 'ufo': if (Sky.ufo) { Sky.ufo(); printLine('visitor inbound. look up.'); } else printLine('ufo: no webgl, no visitors.'); break;
+   case 'shine': case 'flicker': if (Sky.shine) { Sky.shine(); printLine('the universe flickers for you. read it.'); } else printLine('shine: no webgl, no universe.'); break;
    case 'skill': case 'skills': printLines(SKILL_LINES); break;
    case 'whoami': printLine('xiaohang yu. imperfect, therefore fascinating.'); break;
    case 'uptime': printLine(uptimeText(true)); break;

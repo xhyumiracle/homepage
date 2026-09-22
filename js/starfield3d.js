@@ -277,7 +277,8 @@
   gl.uniform2f(U.bg_uCenter, Wd / 2, Hd / 2);
   gl.uniform1f(U.bg_uF, CAM.F * dpr);
   gl.uniform1f(U.bg_uTexOn, texOn);
-  gl.uniform1f(U.bg_uBg, bgMul);
+  var fm = flickerMul(now);
+  gl.uniform1f(U.bg_uBg, bgMul * fm);
   gl.uniform1f(U.bg_uExposure, TUNE.exposure);
   if (tex) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(U.bg_uTex, 0); }
   gl.bindBuffer(gl.ARRAY_BUFFER, bgBuf);
@@ -297,7 +298,7 @@
   gl.uniform1f(U.st_uScale, CAM.F / REST.F);
   gl.uniform1f(U.st_uDpr, dpr);
   gl.uniform1f(U.st_uMaxPt, maxPt);
-  gl.uniform1f(U.st_uGain, TUNE.gain * bgMul);
+  gl.uniform1f(U.st_uGain, TUNE.gain * bgMul * fm);
   gl.bindBuffer(gl.ARRAY_BUFFER, starBuf);
   gl.enableVertexAttribArray(U.aDir); gl.vertexAttribPointer(U.aDir, 3, gl.FLOAT, false, 32, 0);
   gl.enableVertexAttribArray(U.aMag); gl.vertexAttribPointer(U.aMag, 1, gl.FLOAT, false, 32, 12);
@@ -431,8 +432,36 @@
   }
  }
 
- /* echo (shell `echo` drawn on the sky) and meteors: screen space, brief */
+ /* echo: written on the sky. each glyph gets its own direction on the celestial sphere, laid
+  along the screen-horizontal great circle through the anchor (the sky under the point where
+  the old floating echo sat), so the words turn with the look-around, zoom with a fly-in, and
+  bend where the stereographic view stretches. v10 drew the line in screen space, unmoved. */
  var echo = null;
+ function unproject(x, y) { /* screen (CSS px) -> equatorial direction through the current camera */
+  var sx = (x - W / 2) / CAM.F, sy = -(y - H / 2) / CAM.F, r2 = sx * sx + sy * sy;
+  var vz = (1 - r2) / (1 + r2), k = 1 + vz;
+  return apply3(transpose3(mEqCam), [sx * k, sy * k, vz]);
+ }
+ function tangentAt(d, p) { /* unit tangent at d pointing toward p */
+  var dt = d[0] * p[0] + d[1] * p[1] + d[2] * p[2];
+  var t = [p[0] - d[0] * dt, p[1] - d[1] * dt, p[2] - d[2] * dt], n = Math.hypot(t[0], t[1], t[2]) || 1;
+  return [t[0] / n, t[1] / n, t[2] / n];
+ }
+ function slide(d, t, th) { var c = Math.cos(th), sn = Math.sin(th); return [d[0] * c + t[0] * sn, d[1] * c + t[1] * sn, d[2] * c + t[2] * sn]; } /* along the great circle from d toward its tangent t */
+ var ECHO_PX = 28;
+ function setEcho(text) {
+  rebuildCam();
+  var ax = W / 2, ay = H * 0.44;
+  var dir = unproject(ax, ay);
+  var glyphs = text.split(''), widths = [], total = 0;
+  ctx.save(); ctx.font = 'italic 300 ' + ECHO_PX + 'px Spectral, serif';
+  for (var i = 0; i < glyphs.length; i++) { var w = ctx.measureText(glyphs[i]).width; widths.push(w); total += w; }
+  ctx.restore();
+  var centers = [], acc = -total / 2;
+  for (var j = 0; j < glyphs.length; j++) { centers.push(acc + widths[j] / 2); acc += widths[j]; }
+  echo = { glyphs: glyphs, centers: centers, t0: performance.now(), dir: dir, right: tangentAt(dir, unproject(ax + 40, ay)), up: tangentAt(dir, unproject(ax, ay - 40)), F0: CAM.F };
+  if (still) repaint();
+ }
  function drawEcho(now) {
   if (!echo) return;
   var FADE_IN = 800, HOLD = 2500, FADE_OUT = 1500, TOTAL = FADE_IN + HOLD + FADE_OUT;
@@ -440,14 +469,92 @@
   if (el > TOTAL) { echo = null; return; }
   var a = el < FADE_IN ? smooth01(el / FADE_IN) : el < FADE_IN + HOLD ? 1 : 1 - smooth01((el - FADE_IN - HOLD) / FADE_OUT);
   var drift = Math.min(el, FADE_IN + HOLD) / (FADE_IN + HOLD) * 14;
+  var base = slide(echo.dir, echo.up, 2 * drift / echo.F0); /* near the axis, screen px = F * angle / 2 */
+  var pts = [];
+  for (var i = 0; i < echo.glyphs.length; i++) pts.push(project(slide(base, echo.right, 2 * echo.centers[i] / echo.F0)));
   ctx.save();
-  ctx.font = 'italic 300 28px Spectral, serif'; ctx.textAlign = 'center';
+  ctx.font = 'italic 300 ' + (ECHO_PX * CAM.F / echo.F0) + 'px Spectral, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(216,192,138,.55)'; ctx.shadowBlur = 14;
   ctx.fillStyle = 'rgba(216,192,138,' + (0.75 * a) + ')';
-  ctx.fillText(echo.text, W / 2, H * 0.44 - drift);
+  for (var k = 0; k < pts.length; k++) {
+   var p = pts[k]; if (!p) continue;
+   var nb = pts[k + 1], ang = 0;
+   if (nb) ang = Math.atan2(nb.y - p.y, nb.x - p.x);
+   else if (pts[k - 1]) ang = Math.atan2(p.y - pts[k - 1].y, p.x - pts[k - 1].x);
+   ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(ang); ctx.fillText(echo.glyphs[k], 0, 0); ctx.restore();
+  }
   ctx.restore();
  }
- function setEcho(text) { echo = { text: text, t0: performance.now() }; if (still) repaint(); }
+
+ /* ufo (shell `ufo`): a small saucer with someone aboard crosses the sky in screen space, the
+  way the meteors do; drawn by hand, no sprite. it slows mid-way, drops a scanning beam, then
+  leaves in a hurry. */
+ var ufo = null;
+ function launchUfo() {
+  if (still) return;
+  var fromLeft = Math.random() < 0.5;
+  ufo = { t0: performance.now(), dur: 7600, x0: fromLeft ? -50 : W + 50, x1: fromLeft ? W + 50 : -50, dir: fromLeft ? 1 : -1,
+   y: H * (0.14 + Math.random() * 0.36), wob: 1.5 + Math.random() * 2, beamA: 0.22 + Math.random() * 0.14 };
+ }
+ function ufoPath(u) { /* cruise, hover, bolt */
+  if (u < 0.4) return u / 0.4 * 0.42;
+  if (u < 0.6) return 0.42 + (u - 0.4) / 0.2 * 0.08;
+  var q = (u - 0.6) / 0.4; return 0.5 + 0.5 * q * q * q;
+ }
+ function drawUfo(now) {
+  if (!ufo) return;
+  var u = (now - ufo.t0) / ufo.dur;
+  if (u >= 1) { ufo = null; return; }
+  var x = ufo.x0 + (ufo.x1 - ufo.x0) * ufoPath(u), y = ufo.y + Math.sin(u * Math.PI * 2 * ufo.wob) * 6;
+  var tilt = ufo.dir * (0.06 + (u > 0.6 ? 0.14 * (u - 0.6) / 0.4 : 0));
+  var s = mobile ? 0.8 : 1;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(tilt); ctx.scale(s, s);
+  if (u > 0.4 && u < 0.6) { /* the beam, while hovering */
+   var ba = Math.sin((u - 0.4) / 0.2 * Math.PI) * ufo.beamA;
+   var g = ctx.createLinearGradient(0, 4, 0, 90);
+   g.addColorStop(0, 'rgba(159,230,255,' + ba + ')'); g.addColorStop(1, 'rgba(159,230,255,0)');
+   ctx.beginPath(); ctx.moveTo(-7, 4); ctx.lineTo(7, 4); ctx.lineTo(26, 90); ctx.lineTo(-26, 90); ctx.closePath();
+   ctx.fillStyle = g; ctx.fill();
+  }
+  ctx.beginPath(); ctx.ellipse(0, -3, 9, 8, 0, Math.PI, 2 * Math.PI); /* dome */
+  ctx.fillStyle = 'rgba(160,225,255,.16)'; ctx.fill(); ctx.strokeStyle = 'rgba(200,235,255,.6)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, -5.5, 3.2, 3.8, 0, 0, 7); ctx.fillStyle = 'rgba(180,240,190,.95)'; ctx.fill(); /* the pilot */
+  ctx.beginPath(); ctx.ellipse(-1.3, -6, 0.9, 1.1, 0, 0, 7); ctx.ellipse(1.3, -6, 0.9, 1.1, 0, 0, 7); ctx.fillStyle = 'rgba(2,11,26,.95)'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, -9.3); ctx.lineTo(0, -11.5); ctx.strokeStyle = 'rgba(180,240,190,.9)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -12, 0.9, 0, 7); ctx.fillStyle = 'rgba(216,192,138,.95)'; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, 0, 18, 5.5, 0, 0, 7); ctx.fillStyle = 'rgba(233,241,251,.92)'; ctx.fill(); /* the hull */
+  ctx.strokeStyle = 'rgba(120,160,200,.55)'; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, 3, 12, 3, 0, 0, Math.PI); ctx.fillStyle = 'rgba(150,180,215,.6)'; ctx.fill(); /* underside */
+  var phase = Math.floor(now / 160);
+  for (var i = -2; i <= 2; i++) { /* rim lights, one lit at a time, running round */
+   var lit = ((i + 2 + phase) % 5) === 0;
+   ctx.beginPath(); ctx.arc(i * 6.5, 1.6, lit ? 1.5 : 1.1, 0, 7);
+   ctx.fillStyle = lit ? 'rgba(216,192,138,.95)' : 'rgba(159,230,255,.45)'; ctx.fill();
+  }
+  ctx.restore();
+ }
+
+ /* shine (shell `shine`): the universe flickers for you. the whole sky dims in morse, the way
+  the background radiation counted down in The Three-Body Problem; it spells "hello". */
+ var flick = null;
+ var MORSE = { h: '....', e: '.', l: '.-..', o: '---' };
+ function shine(word) {
+  if (still) return;
+  var DIT = 170, steps = [[600, 1]];
+  (word || 'hello').split('').forEach(function (ch, li) {
+   var code = MORSE[ch]; if (!code) return;
+   if (li) steps.push([DIT * 3, 1]);
+   code.split('').forEach(function (sym, si) { if (si) steps.push([DIT, 1]); steps.push([sym === '.' ? DIT : DIT * 3, 0.18]); });
+  });
+  steps.push([800, 1]);
+  flick = { t0: performance.now(), steps: steps };
+ }
+ function flickerMul(now) {
+  if (!flick) return 1;
+  var el = now - flick.t0;
+  for (var i = 0; i < flick.steps.length; i++) { el -= flick.steps[i][0]; if (el < 0) return flick.steps[i][1]; }
+  flick = null; return 1;
+ }
 
  var meteors = [], meteorNext = 0;
  function scheduleMeteor(now) {
@@ -529,7 +636,7 @@
  }
  function targetCamFor(id) {
   var c = byId[id];
-  var F = REST.F * (mobile ? ZOOM : ZOOM_DESK), sy = mobile ? H * 0.20 : H * 0.5;
+  var F = REST.F * (mobile ? ZOOM : ZOOM_DESK), sy = mobile ? H * 0.20 : H * 0.56; /* desktop: a touch below the midline (the title row above the content pulls the eye up) */
   var fr = mobile ? [0.5] : [0.2, 0.23, 0.26, 0.29, 0.32, 0.36], t = null, good = null;
   for (var i = 0; i < fr.length && !good; i++) {
    var sx = W * fr[i], tx = sx, ty = sy;
@@ -672,6 +779,7 @@
   for (var k = 0; k < CONS.length; k++) drawCon(CONS[k], now);
   drawHome(now);
   if (!still) drawMeteors(now);
+  drawUfo(now);
   drawEcho(now);
   canvas.style.cursor = anyHover ? 'pointer' : '';
 
@@ -737,7 +845,7 @@
   MODULES: MODULES,
   highlight: function (id, on) { litId = on ? id : (litId === id ? null : litId); if (still) repaint(); },
   repaint: repaint,
-  flyTo: flyTo, flyOut: flyOut, next: stepNext, prev: stepPrev, home: onHomeClick, echo: setEcho,
+  flyTo: flyTo, flyOut: flyOut, next: stepNext, prev: stepPrev, home: onHomeClick, echo: setEcho, ufo: launchUfo, shine: shine,
   current: function () { return activeId; },
   isZoomed: function () { return zoomed; },
   perf: function () { return { avgMs: PERF.emaMs, samples: PERF.samples, stars: starCount, tex: texReady }; },
