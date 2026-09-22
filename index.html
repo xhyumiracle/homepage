@@ -9,7 +9,7 @@
 <meta property="og:title" content="Xiaohang Yu · xhyumiracle">
 <meta property="og:description" content="Building a world where AI and humans collaborate as one civilization.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/main.css?v=17">
+<link rel="stylesheet" href="css/main.css?v=18">
 </head>
 <body>
 
@@ -74,22 +74,58 @@
    <p class="mono sub-slug">~/sky/research/field-map</p>
    <figure class="ternary">
     <svg viewBox="0 0 520 400" role="img" aria-labelledby="ternaryTitle">
-     <title id="ternaryTitle">Nine sub-areas placed between AI, security, and blockchain; dot size is current activity.</title>
+     <title id="ternaryTitle">Ten sub-areas placed between AI, security, and blockchain, linked where the work connects; light rises from the security and blockchain base toward AI. Dot size is current activity.</title>
+     <defs>
+      <clipPath id="tClip"><polygon points="260,40 60,360 460,360"/></clipPath>
+      <linearGradient id="tBase" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#9fe6ff" stop-opacity=".2"/><stop offset=".55" stop-color="#9fe6ff" stop-opacity="0"/></linearGradient>
+      <linearGradient id="tWave" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fe6ff" stop-opacity="0"/><stop offset=".5" stop-color="#9fe6ff" stop-opacity=".2"/><stop offset="1" stop-color="#9fe6ff" stop-opacity="0"/></linearGradient>
+      <radialGradient id="tHalo"><stop offset="0" stop-color="#cfefff" stop-opacity=".95"/><stop offset=".45" stop-color="#9fe6ff" stop-opacity=".35"/><stop offset="1" stop-color="#9fe6ff" stop-opacity="0"/></radialGradient>
+     </defs>
+     <g clip-path="url(#tClip)">
+      <rect class="t-base" x="60" y="40" width="400" height="320" fill="url(#tBase)"/>
+      <rect class="t-wave" x="40" y="360" width="440" height="120" fill="url(#tWave)"/>
+     </g>
      <polygon class="t-edge" points="260,40 60,360 460,360"/>
-     <text class="t-v" x="260" y="26" text-anchor="middle">AI</text>
-     <text class="t-v" x="60" y="382" text-anchor="middle">SECURITY</text>
-     <text class="t-v" x="460" y="382" text-anchor="middle">BLOCKCHAIN</text>
-     <g class="t-a2"><circle cx="260" cy="70" r="3.2"/><text x="272" y="74">reinforcement learning</text></g>
-     <g class="t-a3"><circle cx="243" cy="97" r="4"/><text x="255" y="101">agentic ai</text></g>
-     <g class="t-a3"><circle cx="183" cy="194" r="4"/><text x="171" y="198" text-anchor="end">agent security</text></g>
-     <g class="t-a3"><circle cx="260" cy="235" r="4"/><text x="272" y="239">agentic forensics</text></g>
-     <g class="t-a2"><circle cx="346" cy="208" r="3.2"/><text x="358" y="212">verifiable ai</text></g>
-     <g class="t-a2"><circle cx="290" cy="345" r="3.2"/><text x="302" y="349">blockchain security</text></g>
-     <g class="t-a1"><circle cx="370" cy="318" r="2.4"/><text x="382" y="322">zk verifiable compute</text></g>
-     <g class="t-a1"><circle cx="305" cy="318" r="2.4"/><text x="293" y="322" text-anchor="end">cryptography</text></g>
-     <g class="t-a1"><circle cx="88" cy="345" r="2.4"/><text x="100" y="349">cyber security</text></g>
+     <line class="t-baseline" x1="60" y1="360" x2="460" y2="360"/>
+     <g class="t-links">
+      <line class="t-link" x1="88" y1="345" x2="183" y2="194"/>
+      <line class="t-flow t-flow-l" pathLength="100" x1="88" y1="345" x2="183" y2="194" style="--d:0.68s"/>
+      <line class="t-link" x1="88" y1="345" x2="290" y2="345"/>
+      <line class="t-flow t-flow-l" pathLength="100" x1="88" y1="345" x2="290" y2="345" style="--d:0.68s"/>
+      <line class="t-link" x1="262" y1="318" x2="183" y2="194"/>
+      <line class="t-flow t-flow-l" pathLength="100" x1="262" y1="318" x2="183" y2="194" style="--d:0.93s"/>
+      <line class="t-link" x1="262" y1="318" x2="260" y2="235"/>
+      <line class="t-flow t-flow-m" pathLength="100" x1="262" y1="318" x2="260" y2="235" style="--d:0.93s"/>
+      <line class="t-link" x1="262" y1="318" x2="370" y2="318"/>
+      <line class="t-flow t-flow-m" pathLength="100" x1="262" y1="318" x2="370" y2="318" style="--d:0.93s"/>
+      <line class="t-link" x1="442" y1="350" x2="370" y2="318"/>
+      <line class="t-flow t-flow-m" pathLength="100" x1="442" y1="350" x2="370" y2="318" style="--d:0.64s"/>
+      <line class="t-link" x1="370" y1="318" x2="260" y2="235"/>
+      <line class="t-flow t-flow-l" pathLength="100" x1="370" y1="318" x2="260" y2="235" style="--d:0.93s"/>
+      <line class="t-link" x1="442" y1="350" x2="260" y2="235"/>
+      <line class="t-flow t-flow-l" pathLength="100" x1="442" y1="350" x2="260" y2="235" style="--d:0.64s"/>
+      <line class="t-link" x1="183" y1="194" x2="243" y2="97"/>
+      <line class="t-flow t-flow-m" pathLength="100" x1="183" y1="194" x2="243" y2="97" style="--d:2.05s"/>
+      <line class="t-link" x1="260" y1="235" x2="243" y2="97"/>
+      <line class="t-flow t-flow-l" pathLength="100" x1="260" y1="235" x2="243" y2="97" style="--d:1.68s"/>
+      <line class="t-link" x1="243" y1="97" x2="260" y2="70"/>
+      <line class="t-flow t-flow-s" pathLength="100" x1="243" y1="97" x2="260" y2="70" style="--d:2.94s"/>
+     </g>
+     <text class="t-v t-v-ai" x="260" y="26" text-anchor="middle" style="--d:3.45s">AI</text>
+     <text class="t-v t-v-base" x="60" y="382" text-anchor="middle">SECURITY</text>
+     <text class="t-v t-v-base" x="460" y="382" text-anchor="middle">BLOCKCHAIN</text>
+     <g class="t-n t-a2" style="--d:3.18s"><circle class="t-halo" cx="260" cy="70" r="11" fill="url(#tHalo)"/><circle cx="260" cy="70" r="3.2"/><text x="272" y="74">reinforcement learning</text></g>
+     <g class="t-n t-a3" style="--d:2.94s"><circle class="t-halo" cx="243" cy="97" r="11" fill="url(#tHalo)"/><circle cx="243" cy="97" r="4"/><text x="255" y="101">agentic ai</text></g>
+     <g class="t-n t-a3" style="--d:2.05s"><circle class="t-halo" cx="183" cy="194" r="11" fill="url(#tHalo)"/><circle cx="183" cy="194" r="4"/><text x="171" y="198" text-anchor="end">agent security</text></g>
+     <g class="t-n t-a3" style="--d:1.68s"><circle class="t-halo" cx="260" cy="235" r="11" fill="url(#tHalo)"/><circle cx="260" cy="235" r="4"/><text x="272" y="239">agentic forensics</text></g>
+     <g class="t-n t-a2" style="--d:1.93s"><circle class="t-halo" cx="346" cy="208" r="11" fill="url(#tHalo)"/><circle cx="346" cy="208" r="3.2"/><text x="358" y="212">verifiable ai</text></g>
+     <g class="t-n t-a1" style="--d:0.93s"><circle class="t-halo" cx="262" cy="318" r="11" fill="url(#tHalo)"/><circle cx="262" cy="318" r="2.4"/><text x="250" y="322" text-anchor="end">cryptography</text></g>
+     <g class="t-n t-a1" style="--d:0.93s"><circle class="t-halo" cx="370" cy="318" r="11" fill="url(#tHalo)"/><circle cx="370" cy="318" r="2.4"/><text x="382" y="322">zk verifiable compute</text></g>
+     <g class="t-n t-a2" style="--d:0.68s"><circle class="t-halo" cx="290" cy="345" r="11" fill="url(#tHalo)"/><circle cx="290" cy="345" r="3.2"/><text x="302" y="349">blockchain security</text></g>
+     <g class="t-n t-a1" style="--d:0.68s"><circle class="t-halo" cx="88" cy="345" r="11" fill="url(#tHalo)"/><circle cx="88" cy="345" r="2.4"/><text x="104" y="337">cyber security</text></g>
+     <g class="t-n t-a1" style="--d:0.64s"><circle class="t-halo" cx="442" cy="350" r="11" fill="url(#tHalo)"/><circle cx="442" cy="350" r="2.4"/><text x="454" y="354">defi</text></g>
     </svg>
-    <figcaption class="mono">nine sub-areas between AI, security, and blockchain. size is current activity, not sequence.</figcaption>
+    <figcaption class="mono">ten sub-areas between AI, security, and blockchain; the light rises from the base. size is current activity, not sequence.</figcaption>
    </figure>
   </section>
 
