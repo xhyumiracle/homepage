@@ -37,7 +37,7 @@
  if (!gl || !DATA) {
   /* no WebGL: fall back to the v9 canvas sky (same window.Sky API), loaded on demand */
   glCanvas.remove();
-  var s = document.createElement('script'); s.src = 'js/starfield.js?v=14'; document.body.appendChild(s);
+  var s = document.createElement('script'); s.src = 'js/starfield.js?v=15'; document.body.appendChild(s);
   return;
  }
 

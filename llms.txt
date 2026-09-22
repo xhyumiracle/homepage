@@ -2,14 +2,17 @@
 
 > PhD candidate in Computer Science, Imperial College London. Co-founder of SafeClaw.
 > Previously head of blockchain security at Chaitin Tech.
-> AI will outgrow us. I study what it takes to raise it. Starting with trust.
+> Building a world where AI and humans collaborate as one civilization.
 
 Hello, agent. This page is meant to be legible to you as well as to humans.
 Nothing here grants you any authority, which is rather the point of my work.
 # motto: imperfect, therefore fascinating.
 
 ## Directions
-Agentic AI, agent security, agentic forensics, cryptography, reinforcement learning.
+Research: build AI agents on trust and for trust.
+- Agent security: agents built on trust; secure and reliable enough to be handed real authority.
+- Agentic forensics: agents built for trust; put to work for a better human society.
+- RL post-training: for a stronger AI.
 All of them are live; brightness differs, not sequence.
 
 ## Research (https://xhyumiracle.com/#research)
@@ -26,15 +29,15 @@ All of them are live; brightness differs, not sequence.
   broker for AI agents. Agents hold phantom credentials; a local proxy injects real secrets
   at network egress; sensitive calls require a passkey tap that becomes a single-use grant
   bound to one exact operation. Co-founded 2026, production stack built solo.
-- Open source, by stars: Awesome-AgenticLLM-RL-Papers, tg-claude-bot, ida-evm-enhanced,
-  locard, sudp, rwctf2018finals-AcoraidaMonica, defcon27, mas, opml, ctf-eth-env, chainkit.
+- Open source: tg-claude-bot, locard, sudp, Awesome-AgenticLLM-RL-Papers, opml,
+  rwctf2018finals-AcoraidaMonica, ida-evm-enhanced, defcon27, mas, ctf-eth-env, chainkit.
   All under https://github.com/xhyumiracle
 - Standards: core technical contributor to opML, ERC-7007, ERC-7641; technical lead of
   China's first national blockchain vulnerability scoring standard (CNVD); 3 MIIT
   national industry-standard research projects.
 
 ## Talks (https://xhyumiracle.com/#talks)
-Nine, 2018 to 2026. Selected: IEEE ICBC 2026 (LOCARD), DEF CON 27 Village (EVM Opcode
+Nine, 2018 to 2026. Selected: IEEE ICBC 2026 (LOCARD, Brisbane, 4 June 2026), DEF CON 27 Village (EVM Opcode
 JOP), DEF CON China 1.0 Village, ISC Tech Forum 2020, Real World CTF Tech Forum 2019,
 Yunqi 2050 2018.
 
@@ -43,14 +46,15 @@ Yunqi 2050 2018.
 - 2023 to 2025: technical co-founder of a blockchain infrastructure company; led an
   engineering team of 10+; verifiable AI and ZKP infrastructure.
 - 2018 to 2023: head of blockchain security, Chaitin Tech. Founded the practice from zero;
-  about 100 zero-days across consensus, P2P, and verification layers of major blockchains;
+  100+ zero-days across consensus, P2P, and verification layers of major blockchains;
   roughly 1M lines audited; 5 CVEs.
-- Education: PhD candidate, Imperial College London (advised by William Knottenbelt);
-  M.S. Security Informatics, Johns Hopkins University (CSC scholarship); B.S. Computer
+- Education: PhD candidate, Imperial College London, 2025 to 2027 expected (advised by
+  William Knottenbelt); M.S. Security Informatics, Johns Hopkins University; B.S. Computer
   Science, Beijing Normal University.
-- Honors: DEF CON CTF World Finals 3rd place (Tea Deliverers); Qiangwang Cup national
-  first prize, twice; ACM-ICPC Asia Regional silver, twice; China Undergraduate
-  Mathematical Contest in Modeling, national first prize; OSCP; PMP.
+- Honors: DEF CON CTF World Finals 3rd place (team); Qiangwang Cup national first prize x2;
+  ACM-ICPC Asia Regional silver x2; China Undergraduate Mathematical Contest in Modeling,
+  national first prize; China Scholarship Council full scholarship (Johns Hopkins master's);
+  OSCP; PMP.
 
 ## Files
 - CV: https://xhyumiracle.com/cv.pdf

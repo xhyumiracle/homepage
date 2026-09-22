@@ -67,15 +67,15 @@
  function smooth01(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
 
  /* asterism data: normalized local coords, y-down, upright (never rotated, never scaled by
-  hover/attention). Orion (about): classic outline quadrilateral Betelgeuse-Bellatrix-Rigel-
+  hover/attention). Orion (projects): classic outline quadrilateral Betelgeuse-Bellatrix-Rigel-
   Saiph plus the belt as its own separate 3-star polyline. Pleiades (talks): real mini-dipper
   arrangement, 9 named stars, no connecting lines. */
  var CONS = [
-  { id: 'about', name: 'about', sub: 'career · education · honors', scaleF: 0.19,
+  { id: 'projects', name: 'projects', sub: 'SafeClaw · open source', scaleF: 0.19,
    /* Betelgeuse, Bellatrix, Rigel, Saiph, Alnitak, Alnilam, Mintaka */
    pts: [[.20,.05],[.62,.12],[.72,.90],[.28,.95],[.34,.48],[.44,.52],[.54,.56]],
    lines: [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6]], warmIdx: 0 },
-  { id: 'projects', name: 'projects', sub: 'SafeClaw · open source', scaleF: 0.15,
+  { id: 'about', name: 'about', sub: 'career · education · honors', scaleF: 0.15,
    pts: [[0,.10],[.12,.35],[.35,.60],[.50,.68],[.72,.55],[.82,.18],[.95,.05]],
    lines: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,0]], specialIdx: 6 },
   { id: 'research', name: 'research', sub: 'ICL PhD · 4 papers', scaleF: 0.15,

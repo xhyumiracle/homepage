@@ -35,8 +35,9 @@
   return lines;
  }
  var SKILL_LINES = [
-  'exploit-development (10y) · protocol-auditing (~1M LoC audited)',
-  'zero-to-one shipping (3 products) · agentic-rl research (4 papers)',
+  'agentic-systems research · blockchain security',
+  'vulnerability discovery (8y) · security auditing (~1M LoC)',
+  '0-to-1 full-stack shipping · tech lead · startup co-founder (x2)',
  ];
  /* uptime: the footer status line ticks once a second in the shape of the unix command. the
   epoch is 1994-04-01T00:00Z, chosen by the owner (not a real birthday); only the days figure
@@ -441,7 +442,7 @@
    case 'grep': grepCmd(arg); break;
    case 'echo': echoCmd(arg); break;
    case 'skill': case 'skills': printLines(SKILL_LINES); break;
-   case 'whoami': printLine('xhyumiracle. imperfect, therefore fascinating.'); break;
+   case 'whoami': printLine('xiaohang yu. imperfect, therefore fascinating.'); break;
    case 'uptime': printLine(uptimeText(true)); break;
    case 'history': shellHistory.forEach(function (h, i) { printLine('  ' + (i + 1) + '  ' + h); }); break;
    case 'date': printLine(new Date().toString()); break;
