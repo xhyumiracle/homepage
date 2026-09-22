@@ -50,7 +50,7 @@ Village 2019; MiiXCon 2019; Real World CTF Tech Forum 2019; BCCon 2018; Yunqi 20
 
 ## About (https://xhyumiracle.com/#about)
 - Since 2026: co-founder, SafeClaw.
-- 2023 to 2025: technical co-founder of a blockchain infrastructure company; led an
+- 2023 to 2025: technical co-founder of a verifiable-AI infrastructure company; led an
   engineering team of 10+; verifiable AI and ZKP infrastructure.
 - 2018 to 2023: head of blockchain security, Chaitin Tech. Founded the practice from zero;
   100+ zero-days across consensus, P2P, and verification layers of major blockchains;
