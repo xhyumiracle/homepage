@@ -518,13 +518,36 @@
   }
   return { yaw: yaw, pitch: pitch, F: F, err: Math.hypot(ex, ey), clamped: clamped };
  }
+ function projectedBox(c, cam) {
+  var m = eqToCamMatrix(cam.yaw, cam.pitch), minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  c.members.forEach(function (mb) {
+   var v = apply3(m, mb.dir), inv = 1 / (1 + v[2]);
+   var px = W / 2 + cam.F * v[0] * inv, py = H / 2 - cam.F * v[1] * inv;
+   if (px < minX) minX = px; if (px > maxX) maxX = px; if (py < minY) minY = py; if (py > maxY) maxY = py;
+  });
+  return [minX, minY, maxX, maxY];
+ }
  function targetCamFor(id) {
   var c = byId[id];
-  if (mobile) return solveCam(c, REST.F * ZOOM, W * 0.5, H * 0.20);
-  var F = REST.F * ZOOM_DESK, t = null;
-  var fr = [0.2, 0.23, 0.26, 0.29, 0.32, 0.36];
-  for (var i = 0; i < fr.length; i++) { t = solveCam(c, F, W * fr[i], H * 0.5); if (!t.clamped && t.err < 1) return t; }
-  return t;
+  var F = REST.F * (mobile ? ZOOM : ZOOM_DESK), sy = mobile ? H * 0.20 : H * 0.5;
+  var fr = mobile ? [0.5] : [0.2, 0.23, 0.26, 0.29, 0.32, 0.36], t = null, good = null;
+  for (var i = 0; i < fr.length && !good; i++) {
+   var sx = W * fr[i], tx = sx, ty = sy;
+   /* the mean of the member directions is not the figure's visual centre (Taurus: the horn tips
+    sit far up, the Pleiades far to one side, so the mean put the horns against the top edge).
+    solve for the mean first, then measure the projected box plus the label under it and re-aim
+    so that box, not the mean, is what sits at (sx, sy). */
+   for (var pass = 0; pass < 3; pass++) {
+    t = solveCam(c, F, tx, ty);
+    if (t.clamped || t.err >= 1) break;
+    good = t;
+    var b = projectedBox(c, t), lab = mobile ? 22 : 30;
+    var bx = (b[0] + b[2]) / 2, by = (b[1] + b[3] + lab) / 2;
+    if (Math.abs(bx - sx) < 0.5 && Math.abs(by - sy) < 0.5) break;
+    tx -= bx - sx; ty -= by - sy;
+   }
+  }
+  return good || t;
  }
  function setCamImmediate(t) { CAM.yaw = t.yaw; CAM.pitch = t.pitch; CAM.F = t.F; camAnim = null; }
  function tweenCam(target, dur, onDone) {
