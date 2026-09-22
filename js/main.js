@@ -72,7 +72,7 @@
   });
   FS.children.README = { type: 'file', content: scrapeLines(document.querySelector('.id-block')).join('\n') };
   FS.children['cv.pdf'] = { type: 'file', content: 'binary. open it: /cv.pdf' };
-  FS.children.notes = { type: 'file', content: 'M1r4c13: 51 study notes from 2017 and 2018, restored (/blog/)' };
+  FS.children.blog = { type: 'file', content: 'M1r4c13: study notes from 2017 and 2018, restored (/blog/)' };
   FS.children.skills = { type: 'file', content: SKILL_LINES.join('\n') };
  }
  function nodeAt(segs) {

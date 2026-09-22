@@ -65,7 +65,7 @@ Village 2019; MiiXCon 2019; Real World CTF Tech Forum 2019; BCCon 2018; Yunqi 20
 
 ## Files
 - CV: https://xhyumiracle.com/cv.pdf
-- notes: https://xhyumiracle.com/blog/ (2017 to 2018 study notes, restored)
+- blog: https://xhyumiracle.com/blog/ (2017 to 2018 study notes, restored)
 
 ## Contact
 - github: https://github.com/xhyumiracle
