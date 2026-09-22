@@ -128,12 +128,12 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
 
 /* module content: floating typeset on the sky, no card */
 .module-content {
- position: fixed; top: 0; right: 0; width: 50vw; height: 100vh; z-index: 6;
+ position: fixed; top: 0; right: 0; width: 66vw; height: 100vh; z-index: 6; /* v11: the content is the subject and takes two thirds; the asterism sits smaller in the left third (starfield3d: ZOOM_DESK, 0.17W) */
  overflow-y: auto; overscroll-behavior: contain;
- padding: 12vh 5vw 22vh 3vw; /* the legend card that used to sit above this is gone (v10.2: it duplicated the nav row and the sky labels, and collided with the panel on short viewports) */
+ padding: 10vh 5vw 22vh 3vw; /* the legend card that used to sit above this is gone (v10.2: it duplicated the nav row and the sky labels, and collided with the panel on short viewports) */
  pointer-events: none;
 }
-.mod { opacity: 0; transform: translateY(10px); transition: opacity .4s ease, transform .4s ease; pointer-events: none; outline: none; }
+.mod { max-width: 80ch; opacity: 0; transform: translateY(10px); transition: opacity .4s ease, transform .4s ease; pointer-events: none; outline: none; }
 .mod.show { opacity: 1; transform: none; pointer-events: auto; }
 .mod[hidden] { display: none; }
 .mod:focus { outline: none; }
@@ -174,7 +174,6 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
 .pub-code:hover { color: var(--gold); border-bottom-color: var(--gold); }
 .pub-meta { display: block; margin-top: 3px; font-size: .66rem; color: var(--faint); letter-spacing: .08em; }
 .pub-divider { padding: .5rem 0 .2rem; color: var(--faint); text-transform: lowercase; border: none; }
-.talks-count { margin-top: .9rem; color: var(--faint); }
 
 /* projects: the open-source shelf, one line per repo, ordered by stars */
 .repos { list-style: none; }
@@ -194,13 +193,13 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
 .honors li { font-size: .9rem; }
 
 /* research: the ternary field map, an explanation figure not a navigation. v11: the light
- rises. a steady glow sits on the security/blockchain base and breathes; once every 9s a
- soft band sweeps from the base to the AI apex (the triangle narrows, so the lit area
+ rises. a few soft wisps (radial-gradient ellipses, no filters) sit on the security/blockchain
+ base and breathe; once every 9s another cluster of wisps drifts from the base to the AI apex (the triangle narrows, so the lit area
  converges), each node flashes as the band passes its height (--d, seconds from the launch),
  and a light packet leaves every link's lower node at that moment and runs up the line.
  html.still (screenshots, reduced motion) freezes it to the static figure. */
 .ternary { margin: .2rem 0 .4rem; }
-.ternary svg { width: 100%; max-width: 440px; height: auto; display: block; overflow: visible; }
+.ternary svg { width: 100%; max-width: 600px; height: auto; display: block; overflow: visible; }
 .t-edge { fill: none; stroke: rgba(200,222,248,.18); stroke-width: 1; }
 .t-baseline { stroke: rgba(159,230,255,.45); stroke-width: 1.2; stroke-linecap: round; animation: t-breathe 9s ease-in-out infinite; }
 .t-base { animation: t-breathe 9s ease-in-out infinite; }
@@ -208,22 +207,23 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
 .t-v { font: 600 10.5px var(--mono); fill: var(--dim); letter-spacing: .16em; }
 .t-v-base { animation: t-vertex 9s ease-in-out infinite; }
 .t-v-ai { animation: t-vertex-ai 9s ease-out infinite; animation-delay: var(--d, 0s); }
-.t-link { stroke: rgba(200,222,248,.13); stroke-width: 1; }
+.t-link { stroke: rgba(200,222,248,.17); stroke-width: 1; }
 .t-flow { stroke: var(--cyan); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 8 192; stroke-dashoffset: 8; opacity: 0;
   filter: drop-shadow(0 0 3px rgba(159,230,255,.8)); animation-duration: 9s; animation-timing-function: linear; animation-iteration-count: infinite; animation-delay: var(--d, 0s); }
 .t-flow-s { animation-name: t-flow-s; }
 .t-flow-m { animation-name: t-flow-m; }
 .t-flow-l { animation-name: t-flow-l; }
-.ternary g text { font: 10.5px var(--mono); fill: var(--tf, var(--dim)); letter-spacing: .04em; paint-order: stroke; stroke: var(--bg); stroke-width: 2px; stroke-linejoin: round; stroke-opacity: .7; }
+.ternary g text { font: 10.5px var(--mono); fill: var(--tf, var(--dim)); letter-spacing: .04em; paint-order: stroke; stroke: var(--bg); stroke-width: 1.2px; stroke-linejoin: round; stroke-opacity: .45; }
 .ternary g circle { fill: #f2f8ff; }
 .t-n { --tf: var(--dim); }
+.t-knock text { stroke-width: 2.6px; stroke-opacity: .85; } /* a line runs behind these two labels */
 .t-n text { animation: t-lit 9s ease-out infinite; animation-delay: var(--d, 0s); }
 .t-n circle:not(.t-halo) { transform-box: fill-box; transform-origin: center; animation: t-pop 9s ease-out infinite; animation-delay: var(--d, 0s); }
 .t-halo { opacity: 0; animation: t-flash 9s ease-out infinite; animation-delay: var(--d, 0s); }
 .t-a3 { --tf: var(--ink); }
 .t-a3 circle:not(.t-halo) { fill: var(--cyan); filter: drop-shadow(0 0 4px rgba(150,225,255,.7)); }
 .t-a2 circle:not(.t-halo) { opacity: .85; }
-.t-a1 { --tf: var(--faint); }
+.t-a1 { --tf: var(--dim); }
 .t-a1 circle:not(.t-halo) { opacity: .5; }
 .ternary figcaption { margin-top: .5rem; color: var(--faint); font-size: .62rem; letter-spacing: .08em; }
 @keyframes t-breathe { 0%, 100% { opacity: 1; } 55% { opacity: .45; } }

@@ -37,9 +37,9 @@ All of them are live; brightness differs, not sequence.
   national industry-standard research projects.
 
 ## Talks (https://xhyumiracle.com/#talks)
-Nine, 2018 to 2026. Selected: IEEE ICBC 2026 (LOCARD, Brisbane, 4 June 2026), DEF CON 27 Village (EVM Opcode
-JOP), DEF CON China 1.0 Village, ISC Tech Forum 2020, Real World CTF Tech Forum 2019,
-Yunqi 2050 2018.
+Nine, newest first: IEEE ICBC 2026 (LOCARD, Brisbane, 4 June 2026); ISC Tech Forum 2020;
+CACE Training Course 2020; DEF CON 27 Village 2019 (EVM Opcode JOP); DEF CON China 1.0
+Village 2019; MiiXCon 2019; Real World CTF Tech Forum 2019; BCCon 2018; Yunqi 2050 2018.
 
 ## About (https://xhyumiracle.com/#about)
 - Since 2026: co-founder, SafeClaw.

@@ -9,7 +9,7 @@
 <meta property="og:title" content="Xiaohang Yu · xhyumiracle">
 <meta property="og:description" content="Building a world where AI and humans collaborate as one civilization.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/main.css?v=18">
+<link rel="stylesheet" href="css/main.css?v=20">
 </head>
 <body>
 
@@ -74,16 +74,22 @@
    <p class="mono sub-slug">~/sky/research/field-map</p>
    <figure class="ternary">
     <svg viewBox="0 0 520 400" role="img" aria-labelledby="ternaryTitle">
-     <title id="ternaryTitle">Ten sub-areas placed between AI, security, and blockchain, linked where the work connects; light rises from the security and blockchain base toward AI. Dot size is current activity.</title>
+     <title id="ternaryTitle">Ten sub-areas placed between AI, security, and blockchain, twelve links where the work connects; light rises from the security and blockchain base toward AI. Dot size is current activity.</title>
      <defs>
       <clipPath id="tClip"><polygon points="260,40 60,360 460,360"/></clipPath>
-      <linearGradient id="tBase" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#9fe6ff" stop-opacity=".2"/><stop offset=".55" stop-color="#9fe6ff" stop-opacity="0"/></linearGradient>
-      <linearGradient id="tWave" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fe6ff" stop-opacity="0"/><stop offset=".5" stop-color="#9fe6ff" stop-opacity=".2"/><stop offset="1" stop-color="#9fe6ff" stop-opacity="0"/></linearGradient>
+      <radialGradient id="tWisp"><stop offset="0" stop-color="#bfe9ff" stop-opacity=".17"/><stop offset=".5" stop-color="#9fe6ff" stop-opacity=".06"/><stop offset="1" stop-color="#9fe6ff" stop-opacity="0"/></radialGradient>
       <radialGradient id="tHalo"><stop offset="0" stop-color="#cfefff" stop-opacity=".95"/><stop offset=".45" stop-color="#9fe6ff" stop-opacity=".35"/><stop offset="1" stop-color="#9fe6ff" stop-opacity="0"/></radialGradient>
      </defs>
      <g clip-path="url(#tClip)">
-      <rect class="t-base" x="60" y="40" width="400" height="320" fill="url(#tBase)"/>
-      <rect class="t-wave" x="40" y="360" width="440" height="120" fill="url(#tWave)"/>
+      <g class="t-base" fill="url(#tWisp)">
+       <ellipse cx="118" cy="366" rx="112" ry="40" opacity=".8"/><ellipse cx="262" cy="374" rx="150" ry="46" opacity=".7"/>
+       <ellipse cx="404" cy="364" rx="112" ry="38" opacity=".8"/><ellipse cx="196" cy="352" rx="70" ry="22" opacity=".5"/>
+      </g>
+      <g class="t-wave" fill="url(#tWisp)">
+       <ellipse cx="150" cy="420" rx="140" ry="40" opacity=".65"/><ellipse cx="300" cy="428" rx="170" ry="34" opacity=".7"/>
+       <ellipse cx="420" cy="416" rx="120" ry="44" opacity=".55"/><ellipse cx="230" cy="404" rx="90" ry="26" opacity=".6"/>
+       <ellipse cx="360" cy="440" rx="110" ry="30" opacity=".5"/>
+      </g>
      </g>
      <polygon class="t-edge" points="260,40 60,360 460,360"/>
      <line class="t-baseline" x1="60" y1="360" x2="460" y2="360"/>
@@ -110,6 +116,8 @@
       <line class="t-flow t-flow-l" pathLength="100" x1="260" y1="235" x2="243" y2="97" style="--d:1.68s"/>
       <line class="t-link" x1="243" y1="97" x2="260" y2="70"/>
       <line class="t-flow t-flow-s" pathLength="100" x1="243" y1="97" x2="260" y2="70" style="--d:2.94s"/>
+      <line class="t-link" x1="370" y1="318" x2="346" y2="208"/>
+      <line class="t-flow t-flow-m" pathLength="100" x1="370" y1="318" x2="346" y2="208" style="--d:0.93s"/>
      </g>
      <text class="t-v t-v-ai" x="260" y="26" text-anchor="middle" style="--d:3.45s">AI</text>
      <text class="t-v t-v-base" x="60" y="382" text-anchor="middle">SECURITY</text>
@@ -117,15 +125,15 @@
      <g class="t-n t-a2" style="--d:3.18s"><circle class="t-halo" cx="260" cy="70" r="11" fill="url(#tHalo)"/><circle cx="260" cy="70" r="3.2"/><text x="272" y="74">reinforcement learning</text></g>
      <g class="t-n t-a3" style="--d:2.94s"><circle class="t-halo" cx="243" cy="97" r="11" fill="url(#tHalo)"/><circle cx="243" cy="97" r="4"/><text x="255" y="101">agentic ai</text></g>
      <g class="t-n t-a3" style="--d:2.05s"><circle class="t-halo" cx="183" cy="194" r="11" fill="url(#tHalo)"/><circle cx="183" cy="194" r="4"/><text x="171" y="198" text-anchor="end">agent security</text></g>
-     <g class="t-n t-a3" style="--d:1.68s"><circle class="t-halo" cx="260" cy="235" r="11" fill="url(#tHalo)"/><circle cx="260" cy="235" r="4"/><text x="272" y="239">agentic forensics</text></g>
+     <g class="t-n t-a3 t-knock" style="--d:1.68s"><circle class="t-halo" cx="260" cy="235" r="11" fill="url(#tHalo)"/><circle cx="260" cy="235" r="4"/><text x="272" y="239">agentic forensics</text></g>
      <g class="t-n t-a2" style="--d:1.93s"><circle class="t-halo" cx="346" cy="208" r="11" fill="url(#tHalo)"/><circle cx="346" cy="208" r="3.2"/><text x="358" y="212">verifiable ai</text></g>
      <g class="t-n t-a1" style="--d:0.93s"><circle class="t-halo" cx="262" cy="318" r="11" fill="url(#tHalo)"/><circle cx="262" cy="318" r="2.4"/><text x="250" y="322" text-anchor="end">cryptography</text></g>
-     <g class="t-n t-a1" style="--d:0.93s"><circle class="t-halo" cx="370" cy="318" r="11" fill="url(#tHalo)"/><circle cx="370" cy="318" r="2.4"/><text x="382" y="322">zk verifiable compute</text></g>
+     <g class="t-n t-a1 t-knock" style="--d:0.93s"><circle class="t-halo" cx="370" cy="318" r="11" fill="url(#tHalo)"/><circle cx="370" cy="318" r="2.4"/><text x="382" y="322">zk verifiable compute</text></g>
      <g class="t-n t-a2" style="--d:0.68s"><circle class="t-halo" cx="290" cy="345" r="11" fill="url(#tHalo)"/><circle cx="290" cy="345" r="3.2"/><text x="302" y="349">blockchain security</text></g>
      <g class="t-n t-a1" style="--d:0.68s"><circle class="t-halo" cx="88" cy="345" r="11" fill="url(#tHalo)"/><circle cx="88" cy="345" r="2.4"/><text x="104" y="337">cyber security</text></g>
      <g class="t-n t-a1" style="--d:0.64s"><circle class="t-halo" cx="442" cy="350" r="11" fill="url(#tHalo)"/><circle cx="442" cy="350" r="2.4"/><text x="454" y="354">defi</text></g>
     </svg>
-    <figcaption class="mono">ten sub-areas between AI, security, and blockchain; the light rises from the base. size is current activity, not sequence.</figcaption>
+    <figcaption class="mono">my research map</figcaption>
    </figure>
   </section>
 
@@ -167,7 +175,7 @@
  </article>
 
  <article class="mod" id="mod-projects" data-module="projects" hidden tabindex="-1">
-  <h2 class="panel-title">Projects: SafeClaw, and the open-source shelf</h2>
+  <h2 class="panel-title">Projects</h2>
 
   <section class="subsec" id="sub-projects-safeclaw" data-slug="safeclaw">
    <p class="mono sub-slug">~/sky/projects/safeclaw</p>
@@ -209,19 +217,21 @@
  </article>
 
  <article class="mod" id="mod-talks" data-module="talks" hidden tabindex="-1">
-  <h2 class="panel-title">Talks: nine, 2018 to 2026</h2>
+  <h2 class="panel-title">Talks</h2>
 
-  <section class="subsec" id="sub-talks-selected" data-slug="selected">
-   <p class="mono sub-slug">~/sky/talks/selected</p>
+  <section class="subsec" id="sub-talks-all" data-slug="all">
+   <p class="mono sub-slug">~/sky/talks/all</p>
    <ul class="evidence talks">
     <li><span class="talk-venue">IEEE ICBC 2026</span> LOCARD: An Agentic Framework for Blockchain Forensics <span class="mono talk-where">Brisbane &middot; 2026</span></li>
+    <li><span class="talk-venue">ISC Tech Forum</span> Guide to Byzantine Traitors: New Types of Blockchain Vulnerabilities <span class="mono talk-where">Beijing &middot; 2020</span></li>
+    <li><span class="talk-venue">CACE Training Course</span> Blockchain Security, from the Basics to Practice <span class="mono talk-where">Beijing &middot; 2020</span></li>
     <li><span class="talk-venue">DEF CON 27 Village</span> EVM Opcode JOP <span class="mono talk-where">Las Vegas &middot; 2019</span></li>
     <li><span class="talk-venue">DEF CON China 1.0 Village</span> Practical Security of Blockchain in Industry <span class="mono talk-where">Beijing &middot; 2019</span></li>
-    <li><span class="talk-venue">ISC Tech Forum</span> Guide to Byzantine Traitors: New Types of Blockchain Vulnerabilities <span class="mono talk-where">Beijing &middot; 2020</span></li>
+    <li><span class="talk-venue">MiiXCon</span> Blockchain Ecosystem Security, a Binary View <span class="mono talk-where">Shanghai &middot; 2019</span></li>
     <li><span class="talk-venue">Real World CTF Tech Forum</span> Defeating Byzantium: Blockchain Security in Practice <span class="mono talk-where">Beijing &middot; 2019</span></li>
+    <li><span class="talk-venue">BCCon</span> A Brief Analysis of Smart-Contract Vulnerabilities <span class="mono talk-where">Beijing &middot; 2018</span></li>
     <li><span class="talk-venue">Yunqi 2050</span> Smart Contract Offense and Defense <span class="mono talk-where">Hangzhou &middot; 2018</span></li>
    </ul>
-   <p class="mono talks-count">six of nine</p>
   </section>
  </article>
 
@@ -288,7 +298,7 @@
 </div>
 
 <script src="js/sky-data.js?v=15"></script>
-<script src="js/starfield3d.js?v=19"></script>
+<script src="js/starfield3d.js?v=20"></script>
 <script src="js/main.js?v=15"></script>
 </body>
 </html>

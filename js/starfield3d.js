@@ -51,7 +51,10 @@
  var LST = 8.4 * 15 * D2R;   /* local sidereal time of the frozen moment: a winter evening */
  var VIEW = { yaw: 240 * D2R, pitch: 44 * D2R, fov: 120 * D2R }; /* desktop rest pose (see the mobile override in layout()) */
  var VIEW_MOBILE = { yaw: 225 * D2R, pitch: 74 * D2R, fov: 80 * D2R };
- var ZOOM = 2.4;
+ var ZOOM = 2.4; /* phone: the asterism is the top of the screen */
+ var ZOOM_DESK = 2.0; /* desktop, v11: the asterism is the object, the content is the subject; it sits smaller, in the left third. not
+  lower: the camera has no roll, so an asterism near the zenith (Gemini, 67 deg up) can only be pushed so far off-axis before no
+  yaw/pitch places it at mid-height at all; see targetCamFor's fallback. */
 
  function eqToHorMatrix() { /* rows: east, north, up (see the derivation in design/research-sky.md notes) */
   var st = Math.sin(LST), ct = Math.cos(LST), sp = Math.sin(LAT), cp = Math.cos(LAT);
@@ -493,25 +496,35 @@
  function applyGaze() { /* the pose rests; the look-around itself is composed in rebuildCam() from GAZE (pixels at the rest focal length -> radians) */
   CAM.yaw = REST.yaw; CAM.pitch = REST.pitch; CAM.F = REST.F;
  }
- /* fly-to target: the asterism centre lands at (0.225W, 0.5H) (phone: 0.5W, 0.2H) with the
-  focal length x ZOOM. solved by a few fixed-point steps on yaw/pitch against the actual
-  projection, which converges fast at these offsets. */
- function targetCamFor(id) {
-  var c = byId[id];
-  var F = REST.F * ZOOM;
-  var sx = mobile ? W * 0.5 : W * 0.225, sy = mobile ? H * 0.20 : H * 0.5;
+ /* fly-to target: the asterism centre lands at (0.2W, 0.5H) on desktop (phone: 0.5W, 0.2H) with
+  the focal length x ZOOM_DESK (phone: ZOOM). solved by damped fixed-point steps on yaw/pitch
+  against the actual projection. the camera has no roll, so for an asterism high in the sky a
+  far-off-axis, mid-height placement can be infeasible (the pitch clamp binds and the steps
+  diverge); on desktop the landing x then walks toward the centre until a solution exists. */
+ function solveCam(c, F, sx, sy) {
   var hor = apply3(M_EQ2HOR, c.dir);
   var yaw = Math.atan2(hor[0], hor[1]), pitch = Math.asin(Math.max(-1, Math.min(1, hor[2])));
-  for (var k = 0; k < 12; k++) {
+  var ex = 0, ey = 0, clamped = false;
+  for (var k = 0; k < 40; k++) {
    var m = eqToCamMatrix(yaw, pitch), v = apply3(m, c.dir), inv = 1 / (1 + v[2]);
    var px = W / 2 + F * v[0] * inv, py = H / 2 - F * v[1] * inv;
-   var ex = px - sx, ey = py - sy;
+   ex = px - sx; ey = py - sy;
    if (Math.abs(ex) < 0.2 && Math.abs(ey) < 0.2) break;
    yaw += ex / F / Math.max(0.2, Math.cos(pitch)) * 0.9;
    pitch -= ey / F * 0.9;
-   pitch = Math.max(-0.3, Math.min(1.5, pitch));
+   var pc = Math.max(-0.3, Math.min(1.5, pitch));
+   if (pc !== pitch) clamped = true;
+   pitch = pc;
   }
-  return { yaw: yaw, pitch: pitch, F: F };
+  return { yaw: yaw, pitch: pitch, F: F, err: Math.hypot(ex, ey), clamped: clamped };
+ }
+ function targetCamFor(id) {
+  var c = byId[id];
+  if (mobile) return solveCam(c, REST.F * ZOOM, W * 0.5, H * 0.20);
+  var F = REST.F * ZOOM_DESK, t = null;
+  var fr = [0.2, 0.23, 0.26, 0.29, 0.32, 0.36];
+  for (var i = 0; i < fr.length; i++) { t = solveCam(c, F, W * fr[i], H * 0.5); if (!t.clamped && t.err < 1) return t; }
+  return t;
  }
  function setCamImmediate(t) { CAM.yaw = t.yaw; CAM.pitch = t.pitch; CAM.F = t.F; camAnim = null; }
  function tweenCam(target, dur, onDone) {
