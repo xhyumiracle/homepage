@@ -25,16 +25,23 @@ All of them are live; brightness differs, not sequence.
   paper list: https://github.com/xhyumiracle/Awesome-AgenticLLM-RL-Papers
 
 ## Projects (https://xhyumiracle.com/#projects)
-- SafeClaw (https://safeclaw.pro, https://github.com/SafeClaw-OSS/safeclaw): credential
-  broker for AI agents. Agents hold phantom credentials; a local proxy injects real secrets
-  at network egress; sensitive calls require a passkey tap that becomes a single-use grant
-  bound to one exact operation. Co-founded 2026, production stack built solo.
-- Open source: tg-claude-bot, locard, sudp, Awesome-AgenticLLM-RL-Papers, opml,
-  rwctf2018finals-AcoraidaMonica, ida-evm-enhanced, defcon27, mas, ctf-eth-env, chainkit.
-  All under https://github.com/xhyumiracle
-- Standards: core technical contributor to opML, ERC-7007, ERC-7641; technical lead of
-  China's first national blockchain vulnerability scoring standard (CNVD); 3 MIIT
-  national industry-standard research projects.
+Four groups, every entry a peer.
+- Agent security: SafeClaw (https://safeclaw.pro, https://github.com/SafeClaw-OSS/safeclaw),
+  credential broker for AI agents: agents hold phantom credentials; a local proxy injects real
+  secrets at network egress; sensitive calls require a passkey tap that becomes a single-use
+  grant bound to one exact operation. Co-founded 2026, production stack built solo. sudp, the
+  protocol layer under it (Rust).
+- Agentic AI: tg-claude-bot, locard, Awesome-AgenticLLM-RL-Papers, mas.
+- Security: EVM JOP, jump-oriented programming brought to the EVM (independent research, 2018
+  to 2019): debuted as the Real World CTF 2018 Finals challenge Acoraida Monica
+  (https://github.com/xhyumiracle/rwctf2018finals-AcoraidaMonica), one solve in two days; since a
+  canonical blockchain-CTF category (CTF Wiki), LiveOverflow video
+  (https://www.youtube.com/watch?v=RfL3FcnVbJg), DEF CON 27 Blockchain Village talk, slides
+  https://github.com/xhyumiracle/defcon27. Also ida-evm-enhanced, ctf-eth-env.
+- Blockchain: opml, chainkit; standards: core technical contributor to opML, ERC-7007,
+  ERC-7641; technical lead of China's first national blockchain vulnerability scoring standard
+  (CNVD); 3 MIIT national industry-standard research projects.
+  All repos under https://github.com/xhyumiracle
 
 ## Talks (https://xhyumiracle.com/#talks)
 Nine, newest first: IEEE ICBC 2026 (LOCARD, Brisbane, 4 June 2026); ISC Tech Forum 2020;

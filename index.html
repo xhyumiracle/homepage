@@ -9,7 +9,7 @@
 <meta property="og:title" content="Xiaohang Yu · xhyumiracle">
 <meta property="og:description" content="Building a world where AI and humans collaborate as one civilization.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='2.2' fill='%23d8c08a'/%3E%3Ccircle cx='8' cy='8' r='6.5' fill='none' stroke='%23d8c08a' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/main.css?v=20">
+<link rel="stylesheet" href="css/main.css?v=21">
 </head>
 <body>
 
@@ -176,44 +176,45 @@
 
  <article class="mod" id="mod-projects" data-module="projects" hidden tabindex="-1">
   <h2 class="panel-title">Projects</h2>
+  <p class="mono research-line">agent security &middot; agentic ai &middot; security &middot; blockchain</p>
 
-  <section class="subsec" id="sub-projects-safeclaw" data-slug="safeclaw">
-   <p class="mono sub-slug">~/sky/projects/safeclaw</p>
-   <p class="sc-hook">An agent that holds your API key holds your full authority. Every call, forever.</p>
-   <p class="sc-answer">SafeClaw ends that. Agents only ever see phantom credentials; a local proxy injects the real secret at the network edge, and sensitive calls wait for a passkey tap. Each tap is a single-use grant bound to one exact operation, so even a fully compromised agent cannot spend your authority.</p>
-   <p class="sc-ship mono">co-founded 2026 &middot; production stack built solo in three months &middot; open source</p>
-   <p class="sc-links">
-    <a href="https://safeclaw.pro">safeclaw.pro</a>
-    <a href="https://github.com/SafeClaw-OSS/safeclaw">github</a>
-    <a href="https://arxiv.org/abs/2604.24920">the paper behind it</a>
-   </p>
+  <section class="subsec" id="sub-projects-agent-security" data-slug="agent-security">
+   <p class="mono sub-slug">~/sky/projects/agent-security</p>
+   <ul class="repos">
+    <li class="repo"><a class="repo-name" href="https://safeclaw.pro">SafeClaw</a><span class="repo-desc">credential broker for AI agents. An agent that holds your API key holds your full authority, every call, forever; here agents only ever see phantom credentials, a local proxy injects the real secret at the network edge, and sensitive calls wait for a passkey tap that becomes a single-use grant bound to one exact operation. A fully compromised agent still cannot spend your authority.</span><span class="repo-meta mono">co-founded 2026 &middot; production stack built solo in three months &middot; open source</span><span class="repo-links mono"><a href="https://safeclaw.pro">safeclaw.pro</a><a href="https://github.com/SafeClaw-OSS/safeclaw">github</a><a href="https://arxiv.org/abs/2604.24920">the paper behind it</a></span></li>
+    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/sudp">sudp</a><span class="repo-desc">Secret-Use Delegation Protocol, the protocol layer under SafeClaw</span><span class="repo-meta mono">Rust &middot; 4 stars &middot; arXiv 2026, first author</span></li>
+   </ul>
   </section>
 
-  <section class="subsec" id="sub-projects-open-source" data-slug="open-source">
-   <p class="mono sub-slug">~/sky/projects/open-source</p>
+  <section class="subsec" id="sub-projects-agentic-ai" data-slug="agentic-ai">
+   <p class="mono sub-slug">~/sky/projects/agentic-ai</p>
    <ul class="repos">
     <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/tg-claude-bot">tg-claude-bot</a><span class="repo-desc">Telegram bridge for Claude Code: resume any CLI session, per-topic chats, local voice, inline-button approvals</span><span class="repo-meta mono">Python &middot; 16 stars</span></li>
-    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/locard">locard</a><span class="repo-desc">first agentic framework for blockchain forensics: LLM agents tracing transactions across chains</span><span class="repo-meta mono">Python &middot; 5 stars</span></li>
-    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/sudp">sudp</a><span class="repo-desc">Secret-Use Delegation Protocol, the protocol layer under SafeClaw</span><span class="repo-meta mono">Rust &middot; 4 stars</span></li>
+    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/locard">locard</a><span class="repo-desc">first agentic framework for blockchain forensics: LLM agents tracing transactions across chains</span><span class="repo-meta mono">Python &middot; 5 stars &middot; IEEE ICBC 2026, first author</span></li>
     <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/Awesome-AgenticLLM-RL-Papers">Awesome-AgenticLLM-RL-Papers</a><span class="repo-desc">paper list companion to the TMLR 2025 agentic-RL survey; started and maintained here, later handed to a co-author</span><span class="repo-meta mono">markdown &middot; 1898 stars</span></li>
-    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/opml">opml</a><span class="repo-desc">optimistic machine learning: off-chain inference verified on-chain through a fault-proof dispute engine; core technical contributor to the standard</span><span class="repo-meta mono">Solidity</span></li>
-    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/rwctf2018finals-AcoraidaMonica">rwctf2018finals-AcoraidaMonica</a><span class="repo-desc">Real World CTF 2018 Finals blockchain challenge, the first EVM jump-oriented-programming puzzle</span><span class="repo-meta mono">JavaScript &middot; 4 stars</span></li>
-    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/ida-evm-enhanced">ida-evm-enhanced</a><span class="repo-desc">IDA processor module for the EVM, extended for real-world contract reversing</span><span class="repo-meta mono">Python &middot; 7 stars</span></li>
-    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/defcon27">defcon27</a><span class="repo-desc">slides for the EVM Opcode JOP talk, DEF CON 27 Blockchain Village</span><span class="repo-meta mono">slides &middot; 3 stars</span></li>
     <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/mas">mas</a><span class="repo-desc">framework for modular autonomous multi-agent systems, execution flow separated from the task graph</span><span class="repo-meta mono">Python &middot; 1 star</span></li>
-    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/ctf-eth-env">ctf-eth-env</a><span class="repo-desc">dockerized private Ethereum network with an RPC proxy, for CTF challenge infrastructure</span><span class="repo-meta mono">JavaScript</span></li>
-    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/chainkit">chainkit</a><span class="repo-desc">Solidity helper for deploying contracts from raw bytecode and reading deployed code</span><span class="repo-meta mono">Solidity</span></li>
    </ul>
-   <p class="mono repos-note">star counts as of september 2026</p>
   </section>
 
-  <section class="subsec" id="sub-projects-standards" data-slug="standards">
-   <p class="mono sub-slug">~/sky/projects/standards</p>
-   <ul class="evidence">
-    <li>Core technical contributor to open standards: opML (optimistic machine learning), ERC-7007 (onchain AI-generated assets), ERC-7641 (fee-sharing token).</li>
-    <li>Technical lead of China&rsquo;s first national blockchain vulnerability scoring standard (CNVD); participated in 3 MIIT national industry-standard research projects.</li>
+  <section class="subsec" id="sub-projects-security" data-slug="security">
+   <p class="mono sub-slug">~/sky/projects/security</p>
+   <ul class="repos">
+    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/defcon27">EVM JOP</a><span class="repo-desc">jump-oriented programming brought to the EVM: gadget chains through JUMP, JUMPI and JUMPDEST, so a contract whose source reads clean can still carry a backdoor. Debuted as the Real World CTF 2018 Finals challenge Acoraida Monica, one solve in two days; since a canonical blockchain-CTF category, written up on CTF Wiki, and the subject of a two-part LiveOverflow video.</span><span class="repo-meta mono">2018 to 2019 &middot; independent research &middot; DEF CON 27 Blockchain Village</span><span class="repo-links mono"><a href="https://github.com/xhyumiracle/rwctf2018finals-AcoraidaMonica">the challenge</a><a href="https://github.com/xhyumiracle/defcon27">slides</a><a href="https://www.youtube.com/watch?v=RfL3FcnVbJg">LiveOverflow&rsquo;s solve</a><a href="https://ctf-wiki.org/en/blockchain/ethereum/attacks/jump-oriented-programming/">CTF Wiki</a></span></li>
+    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/ida-evm-enhanced">ida-evm-enhanced</a><span class="repo-desc">IDA processor module for the EVM, extended for real-world contract reversing</span><span class="repo-meta mono">Python &middot; 7 stars</span></li>
+    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/ctf-eth-env">ctf-eth-env</a><span class="repo-desc">dockerized private Ethereum network with an RPC proxy, for CTF challenge infrastructure</span><span class="repo-meta mono">JavaScript</span></li>
    </ul>
   </section>
+
+  <section class="subsec" id="sub-projects-blockchain" data-slug="blockchain">
+   <p class="mono sub-slug">~/sky/projects/blockchain</p>
+   <ul class="repos">
+    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/opml">opml</a><span class="repo-desc">optimistic machine learning: off-chain inference verified on-chain through a fault-proof dispute engine; core technical contributor to the standard</span><span class="repo-meta mono">Solidity</span></li>
+    <li class="repo"><a class="repo-name" href="https://github.com/xhyumiracle/chainkit">chainkit</a><span class="repo-desc">Solidity helper for deploying contracts from raw bytecode and reading deployed code</span><span class="repo-meta mono">Solidity</span></li>
+    <li class="repo"><span class="repo-name notlink">standards</span><span class="repo-desc">core technical contributor to opML, ERC-7007 (onchain AI-generated assets) and ERC-7641 (fee-sharing token); technical lead of China&rsquo;s first national blockchain vulnerability scoring standard (CNVD); 3 MIIT national industry-standard research projects</span><span class="repo-meta mono">2018 to 2025</span></li>
+   </ul>
+  </section>
+
+  <p class="mono repos-note">star counts as of september 2026</p>
  </article>
 
  <article class="mod" id="mod-talks" data-module="talks" hidden tabindex="-1">

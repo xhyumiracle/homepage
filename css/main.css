@@ -139,7 +139,6 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
 .mod:focus { outline: none; }
 
 .panel-title { font-weight: 300; font-size: clamp(1.15rem, 2vw, 1.45rem); line-height: 1.4; margin-bottom: 1.1rem; letter-spacing: .04em; text-shadow: var(--glow); }
-.sc-hook { font-size: clamp(1.05rem, 1.7vw, 1.3rem); line-height: 1.5; margin-bottom: 1.1rem; color: var(--ink); }
 
 /* subsections: mono path header + evidence list, repeated per facet */
 .subsec { margin-top: 1.9rem; }
@@ -159,10 +158,6 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
  background: var(--gold); opacity: .55;
 }
 .aside { margin-top: 1.7rem; font-style: italic; font-size: .8rem; color: var(--faint); }
-.sc-answer { color: var(--dim); margin-bottom: 1.4rem; }
-.sc-ship { color: var(--faint); margin-bottom: 1.4rem; }
-.sc-links { margin-bottom: .2rem; }
-.sc-links a { margin-right: 1.6em; }
 
 .research-line { color: var(--faint); margin: -.4rem 0 1.6rem; }
 .pubs { list-style: none; margin-top: .3rem; }
@@ -175,13 +170,20 @@ body.zoomed .sky-back, body.zoomed .chev { opacity: 1; pointer-events: auto; }
 .pub-meta { display: block; margin-top: 3px; font-size: .66rem; color: var(--faint); letter-spacing: .08em; }
 .pub-divider { padding: .5rem 0 .2rem; color: var(--faint); text-transform: lowercase; border: none; }
 
-/* projects: the open-source shelf, one line per repo, ordered by stars */
+/* projects: four groups (agent security, agentic ai, security, blockchain), every entry in the
+ same grammar: name, one description, one meta line, optional links row. SafeClaw is the first
+ entry, not a different kind of thing (v11: the old hook/answer/ship block made the shelf below
+ read as its sub-list). */
 .repos { list-style: none; }
 .repo { padding: .55rem 0; border-top: 1px solid var(--line); font-size: .9rem; line-height: 1.5; }
 .repo:last-child { border-bottom: 1px solid var(--line); }
 .repo-name { font-family: var(--mono); font-size: .78rem; letter-spacing: .02em; }
 .repo-desc { display: block; color: var(--dim); font-size: .86rem; margin-top: .1rem; }
 .repo-meta { display: block; font-size: .62rem; color: var(--faint); margin-top: 3px; letter-spacing: .1em; }
+.repo-name.notlink { color: var(--ink); border-bottom: none; }
+.repo-links { display: block; margin-top: 5px; font-size: .66rem; letter-spacing: .06em; }
+.repo-links a { margin-right: 1.3em; color: var(--faint); border-bottom: 1px dotted var(--faint); }
+.repo-links a:hover { color: var(--gold); border-bottom-color: var(--gold); }
 .repos-note { margin-top: .8rem; color: var(--faint); font-size: .62rem; }
 
 /* talks: venue up front, place and year trailing */
